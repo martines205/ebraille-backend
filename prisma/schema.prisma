@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:root@localhost:5432/ebraille?schema=ebrailleSchema"
+}
+
+model Bookmark {
+  userId              String @id
+  bookmarkInformation Json?  @db.Json
+}
+
+model UserInformation {
+  id        BigInt   @id @default(autoincrement())
+  role      String   @default("USER")
+  firstName String   @db.VarChar
+  lastName  String   @db.VarChar
+  nik       String   @db.VarChar
+  gender    Int      @db.SmallInt
+  email     String   @db.VarChar
+  username  String   @db.VarChar
+  password  String   @db.VarChar
+  createdAt DateTime @default(now())
+}
+
+model BookInformation {
+  id                BigInt  @id @default(autoincrement())
+  year              String  @db.VarChar
+  availability      String  @db.VarChar
+  booksCode         String  @db.VarChar
+  categorys         String  @db.VarChar
+  editons           String  @db.VarChar
+  languages         String  @db.VarChar
+  publishers        String  @db.VarChar
+  titles            String  @db.VarChar
+  uploaders         String  @db.VarChar
+  maxBook           Int     @default(6)
+  bookCoverFilePath String? @db.VarChar
+  bookFilePath      String? @db.VarChar
+  authors           String  @db.VarChar
+  isbn              String @db.VarChar
+}
