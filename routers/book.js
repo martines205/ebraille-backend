@@ -13,20 +13,34 @@
 import express from "express";
 const bookRouter = express.Router();
 const BookDir = "./bookDir";
+const tempUpload = "./uploads";
 import multer from "multer";
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    const ext = file.mimetype.split("/");
     const uniqueSuffix = currentId;
-    cb(null, uniqueSuffix + "." + ext[1]);
+    if (file.fieldname === "bookFile") {
+      cb(null, uniqueSuffix + ".txt");
+    } else {
+      const ext = file.mimetype.split("/");
+      cb(null, uniqueSuffix + "." + ext[1]);
+    }
   },
 });
 const upload = multer({
   storage: storage,
-  fileFilter: (req, file, cb) => {
+  fileFilter: async (req, file, cb) => {
+    try {
+      await access(tempUpload, constants.R_OK | constants.W_OK);
+    } catch {
+      try {
+        await mkdir(tempUpload, {
+          recursive: true,
+        });
+      } catch (err) {}
+    }
     const isbn = req.body.isbn;
     if (isbn === "" || isbn === undefined) return cb(null, false);
     return cb(null, true);
@@ -70,7 +84,7 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
     await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
     const name = await getBookName(Bookcategory);
     if (req.files.bookFile) {
-      let bookFileExt = req.files.bookFile[0].mimetype.split("/")[1];
+      let bookFileExt = "txt";
       bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
       await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
     }
