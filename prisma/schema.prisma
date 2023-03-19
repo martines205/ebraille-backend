@@ -14,7 +14,7 @@ model Bookmark {
 
 model UserInformation {
   id        BigInt   @id @default(autoincrement())
-  role      String   @default("USER")
+  role      String   @default("USER") @db.VarChar
   firstName String   @db.VarChar
   lastName  String   @db.VarChar
   nik       String   @db.VarChar
@@ -23,6 +23,12 @@ model UserInformation {
   username  String   @db.VarChar
   password  String   @db.VarChar
   createdAt DateTime @default(now())
+}
+
+model TokenInformation {
+  nik          String   @id @unique @db.VarChar
+  createdAt    DateTime @default(now())
+  refreshToken String   @db.VarChar
 }
 
 model BookInformation {
@@ -40,5 +46,5 @@ model BookInformation {
   bookCoverFilePath String? @db.VarChar
   bookFilePath      String? @db.VarChar
   authors           String  @db.VarChar
-  isbn              String @db.VarChar
+  isbn              String  @db.VarChar
 }

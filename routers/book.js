@@ -53,8 +53,9 @@ const urlencoded = bodyParser.urlencoded({ extended: false });
 const cpUpload = upload.fields([{ name: "bookFile" }, { name: "bookCoverFile" }]);
 import { mkdir, access, constants, unlink } from "node:fs/promises";
 import { moveFile } from "move-file";
-
+import jwt from "jsonwebtoken";
 import { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getBookList } from "../model/books/bookModel.js";
+import { checkStatusUserRefreshToken } from "../model/Users/userAuthentication.js";
 
 const currentId = Date.now() + "-" + Math.round(Math.random() * 1e9);
 
@@ -125,26 +126,30 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
 });
 
 bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
-  console.log(req.query);
-  if (req.query.accessToken === undefined || req.query.accessToken === "") {
-    res.send({ Status: false, errorMsg: "Toket ehhh..., token mana token nya!!!!" });
-  } else if (req.query.accessToken !== "po**hub.com") {
-    res.send({ Status: false, errorMsg: "Toketnya ehhh..., token nya salah weeiiii!!!!" });
-  } else next();
+  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
+    if (err) {
+      console.error({ Error: { Route: "/getBook", "Error message": err.message, "Request query: ": req.query } });
+      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
+    } else {
+      const result = await checkStatusUserRefreshToken(decoded.NIK, req.query.refreshToken);
+      if (result === false) return res.status(403).send({ Status: false, error: "Silahkan login terlebih dahulu!" });
+      next();
+    }
+  });
 });
 
 bookRouter.get("/getBook", async function (req, res) {
   const result = await getBookList();
-  console.log("result: ", result);
-  res.send(result);
+  res.status(200).send({ status: result.result, data: result.data });
 });
 
 bookRouter.get("/downloadBook", async function (req, res, next) {
-  if (req.query.accessToken === undefined || req.query.accessToken === "") {
-    res.send({ Status: false, errorMsg: "Toket ehhh..., token mana token nya!!!!" });
-  } else if (req.query.accessToken !== "po**hub.com") {
-    res.send({ Status: false, errorMsg: "Toketnya ehhh..., token nya salah weeiiii!!!!" });
-  } else next();
+  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, (err, decoded) => {
+    if (err) {
+      console.log("Error:", err.message, "\nRequest query: ", req.query);
+      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
+    } else next();
+  });
 });
 bookRouter.get("/downloadBook", async function (req, res) {
   const dBresult = await getBookPath(req.query.isbn);
@@ -155,6 +160,12 @@ bookRouter.get("/downloadBook", async function (req, res) {
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
   const bookmark = req.body.bookmarkInformation.length;
+  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, (err, decoded) => {
+    if (err) {
+      console.log("Error:", err.message, "\nRequest query: ", req.query);
+      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
+    }
+  });
   console.log(bookmark < 10);
   if (bookmark > 10) {
     res.status(404).send({ error: "bang bookmark nya kebanyakan!" });

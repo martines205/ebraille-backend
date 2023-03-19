@@ -1,5 +1,8 @@
 import Prisma from "@prisma/client";
 import Bcrypt from "bcrypt";
+import crypto from "crypto";
+import { RedisClient } from "../../index.js";
+
 const { PrismaClient, PrismaClientKnownRequestError } = Prisma;
 const prisma = new PrismaClient();
 
@@ -26,13 +29,14 @@ async function nikIsValid(nik) {
       throw new Error(result);
     }
     if (nik === result.nik) {
-      return { result: true, msg: `Login dengan NIK sukses` };
+      return { result: true, msg: `Login dengan NIK sukses`, role: result.role };
     } else return { result: false, msg: `NIK tidak terdaftar` };
   } catch (error) {
     console.log(error.code);
     return { result: false, msg: `NIK tidak terdaftar` };
   }
 }
+
 async function addNewUser(firstName, lastName, gender, nik, username, email, password) {
   const checkResult = await UniqeCredentialCheck(nik, username, email);
   if (checkResult.isCredentialSafeToAdd === false) return { adduserStatus: false, msg: checkResult.warn };
@@ -59,12 +63,64 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
   }
 }
 
-export { userIsValid, nikIsValid, addNewUser };
+async function checkStatusUserRefreshToken(nik, token) {
+  try {
+    console.log("nik, token: ", nik, token);
+    const result = await RedisClient.get(nik);
+    console.log("result: ", result);
+    if (result !== null && token === result) {
+      console.log(`Found: ${nik} => `, result);
+      return true;
+    }
+    const err = new Error();
+    err.message = "Chace miss";
+    throw err;
+  } catch (error) {
+    console.log("error:", error.message);
+    const tokenInformation = await prisma.tokenInformation.count({
+      where: { AND: [{ nik }, { refreshToken: token }] },
+    });
+    console.log(tokenInformation);
+    if (tokenInformation > 0) return true;
+    else return false;
+  }
+  // console.log(`NIK: ${nik} =>`, tokenInformation);
+}
+
+async function getUserRefreshToken(nik) {
+  const refToken = crypto.randomBytes(25).toString("hex");
+  const result = await prisma.tokenInformation.upsert({
+    where: { nik: nik },
+    update: { refreshToken: refToken },
+    create: {
+      nik: nik.toString(),
+      refreshToken: refToken,
+    },
+  });
+  console.log(`NIK: ${nik} =>`, { result });
+  await RedisClient.set(`${nik}`, refToken);
+  console.log(`RedisClient => ${nik} =>`, await RedisClient.get(nik));
+  return refToken;
+}
+
+async function deleteUserRefreshToken(nik) {
+  try {
+    const statusRefreshToken = await prisma.tokenInformation.delete({
+      where: { nik: nik },
+    });
+    console.log(`NIK: ${nik} =>`, { statusRefreshToken }, "=> deleted~!");
+    return true;
+  } catch (error) {
+    console.log(`RefreshToken with NIK "${nik}" unavailable!`);
+    return false;
+  }
+}
+
+export { userIsValid, nikIsValid, addNewUser, getRandomArbitrary, getUserRefreshToken, deleteUserRefreshToken, checkStatusUserRefreshToken };
 
 function validatePassword(password, dbPassword) {
   return Bcrypt.compareSync(password, dbPassword);
 }
-
 async function prismaMain(firstName, lastName, gender, nik, username, email, password) {
   await prisma.userInformation.create({
     data: { firstName, lastName, gender, nik, username, email, password },
