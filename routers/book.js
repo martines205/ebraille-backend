@@ -104,7 +104,7 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
       await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
     }
     Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-    res.send("berhasil");
+    return res.send("berhasil");
     addBookToDb(bookObject);
   } else {
     try {
