@@ -110,7 +110,9 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
       // addBookToDb(bookObject);
       return res.send("berhasil");
     } catch (error) {
+      console.log(Object.keys(error));
       console.log(error);
+      return res.send("gagal bang");
     }
   } else {
     try {
@@ -120,8 +122,9 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
           await access(`uploads/${currentId}.${bookFileExt}`, constants.R_OK | constants.W_OK);
           await unlink(`uploads/${currentId}.${bookFileExt}`);
         } catch (error) {
-          console.log();
-          error;
+          console.log(Object.keys(error));
+          console.log(error);
+          return res.send("gagal bang");
         }
       }
       if (req.files.bookCoverFile) {
@@ -130,7 +133,9 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
           await access(`uploads/${currentId}.${bookCoverFileExt}`, constants.R_OK | constants.W_OK);
           await unlink(`uploads/${currentId}.${bookCoverFileExt}`);
         } catch (error) {
+          console.log(Object.keys(error));
           console.log(error);
+          return res.send("gagal bang");
         }
       }
     } catch (error) {
