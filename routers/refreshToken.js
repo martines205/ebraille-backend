@@ -40,7 +40,7 @@ TokenRouter.get("/byNik", async (req, res) => {
   const refreshToken = req.query.refreshToken;
   const nikStatus = await nikIsValid(nik);
 
-  jwt.sign({ NIK: nik, role: nikStatus.role, iat: Math.floor(Date.now() / 1000) }, "prvK", { algorithm: "HS256", expiresIn: "10m" }, async function (err, token) {
+  jwt.sign({ NIK: nik, role: nikStatus.role, iat: Math.floor(Date.now() / 1000) }, "prvK", { algorithm: "HS256", expiresIn: "3h" }, async function (err, token) {
     if (err !== null) {
       console.log("err: ", err);
       return res.send({ Status: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });

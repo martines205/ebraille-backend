@@ -30,7 +30,7 @@ loginRouter.get("/byNIK", async (req, res) => {
   if (loginStatus.result) {
     const bookmark = await getUserBookmarkInformation(nik);
     const iat = Math.floor(Date.now() / 1000);
-    jwt.sign({ NIK: nik, role: loginStatus.role, iat }, "prvK", { algorithm: "HS256", expiresIn: "10m" }, async function (err, token) {
+    jwt.sign({ NIK: nik, role: loginStatus.role, iat }, "prvK", { algorithm: "HS256", expiresIn: "3h" }, async function (err, token) {
       if (err !== null) {
         console.log("err: ", err);
         res.send({ loginStatus: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });

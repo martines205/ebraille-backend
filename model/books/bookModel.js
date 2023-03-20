@@ -18,8 +18,8 @@ async function bookCredentialIsSave(credential) {
     } else {
       console.log(result);
       const errorInCredential = {};
-      errorInCredential.errorType = "Credential already exist!";
       errorInCredential.status = false;
+      errorInCredential.errorType = "Credential already exist!";
       errorInCredential.message = {
         warn: bookCredential.filter((v) => {
           return v === result.titles || v === result.isbn;
@@ -29,8 +29,9 @@ async function bookCredentialIsSave(credential) {
     }
   } catch (error) {
     console.log(Object.keys(error));
+    error.errorType = "";
     console.log(error);
-    return { status: true, warn: [""] };
+    return { status: true, errorType: "", message: { warn: [""] } };
   }
 }
 

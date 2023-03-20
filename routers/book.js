@@ -65,6 +65,7 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
   const refreshToken = req.body.refreshToken;
   try {
     const result = await validateToken(accessToken, refreshToken);
+    console.log("result: ", result);
     if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
@@ -74,9 +75,11 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
       unlink(req.files.bookFile[0].path);
       unlink(req.files.bookCoverFile[0].path);
       return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
-    } else next();
+    } else return next();
   } catch (error) {
-    console.log(error);
+    error.Route = "/uploadBook";
+    error.method = "POST";
+    console.log("error: ", error);
     return res.status(error.Code).send(error.errorData);
   }
 });
@@ -89,30 +92,10 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
   delete bookObject.accessToken;
   delete bookObject.refreshToken;
 
-  const checkResult = await bookCredentialIsSave(req.body);
-  await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
-  console.log(checkResult);
-  if (checkResult.status === true) {
-    const name = await getBookName(Bookcategory);
-    try {
-      if (req.files.bookFile) {
-        let bookFileExt = "txt";
-        bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
-        await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
-      }
-      if (req.files.bookCoverFile) {
-        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
-        bookCoverFilePath = BookDir + `/${Bookcategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
-        await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
-      }
-      Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-      addBookToDb(bookObject);
-    } catch (error) {
-      console.log(Object.keys(error));
-      console.log(error);
-    }
-    return res.send("berhasil");
-  } else {
+  const CredentialIsSave = await bookCredentialIsSave(req.body);
+  const folderIsready = await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
+
+  if (folderIsready === false) {
     try {
       if (req.files.bookFile) {
         let bookFileExt = "txt";
@@ -128,7 +111,48 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
       console.log(Object.keys(error));
       console.log(error);
     }
-    return res.send("gagal bang");
+    return res.status(500).send({ status: false, error: "Server Error, cant create folder index!" });
+  }
+
+  if (CredentialIsSave.status === false) {
+    try {
+      if (req.files.bookFile) {
+        let bookFileExt = "txt";
+        await access(`uploads/${currentId}.${bookFileExt}`, constants.R_OK | constants.W_OK);
+        await unlink(`uploads/${currentId}.${bookFileExt}`);
+      }
+      if (req.files.bookCoverFile) {
+        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
+        await access(`uploads/${currentId}.${bookCoverFileExt}`, constants.R_OK | constants.W_OK);
+        await unlink(`uploads/${currentId}.${bookCoverFileExt}`);
+      }
+    } catch (error) {
+      console.log(Object.keys(error));
+      console.log(error);
+    }
+    const credentialError = CredentialIsSave;
+    return res.status(404).send(credentialError);
+  } else {
+    try {
+      const name = await getBookName(Bookcategory);
+      if (req.files.bookFile) {
+        let bookFileExt = "txt";
+        bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
+        await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
+      }
+      if (req.files.bookCoverFile) {
+        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
+        bookCoverFilePath = BookDir + `/${Bookcategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
+        await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
+      }
+      Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
+      // addBookToDb(bookObject);
+    } catch (error) {
+      console.log(Object.keys(error));
+      console.log(error);
+      return res.send({ status: true, errorType: "", warn: error });
+    }
+    return res.send({ status: true, errorType: "", warn: "" });
   }
 });
 
@@ -191,7 +215,10 @@ async function checkDirIsExistIfNotCreate(path, category) {
   try {
     await access(path + `/${category}/BookFile/`, constants.R_OK | constants.W_OK);
     await access(path + `/${category}/BookCoverFile/`, constants.R_OK | constants.W_OK);
+    console.log("\nFolder exist!");
+    return true;
   } catch {
+    console.log("\nFolder do not exist! , try to create folder!");
     try {
       const createBookFileDir = await mkdir(path + `/${category}/BookFile/`, {
         recursive: true,
@@ -199,7 +226,12 @@ async function checkDirIsExistIfNotCreate(path, category) {
       const createBookCoverFileDir = await mkdir(path + `/${category}/BookCoverFile/`, {
         recursive: true,
       });
-    } catch (err) {}
+      console.log("success to to create folder!");
+      return true;
+    } catch (err) {
+      console.log("Failed to to create folder!");
+      return false;
+    }
   }
 }
 
@@ -207,26 +239,28 @@ async function validateRequestField(req, res, next) {
   const uploadFiled = ["titles", "isbn", "authors", "editions", "year", "publishers", "categories", "languages", "uploaders", "availability", "accessToken", "refreshToken"].sort();
   const reqField = Object.keys(req.body).sort();
   const isEqual = uploadFiled.toString() === reqField.toString();
-  console.log("uploadFiled === reqField : ", isEqual);
   const emptyField = Object.keys(req.body).filter((v, i) => req.body[`${v}`] === "");
-  console.log("emptyField: ", emptyField);
-  console.log("isEqual && emptyField.length !== 0: ", isEqual && emptyField.length === 0);
+  // console.log("uploadFiled === reqField : ", isEqual);
+  // console.log("emptyField: ", emptyField);
+  // console.log("isEqual && emptyField.length !== 0: ", isEqual && emptyField.length === 0);
   if (isEqual && emptyField.length === 0) return next();
   return res.status(400).send({ Status: false, errorMsg: `Field ${emptyField.toString()} tidak boleh kosong!` });
 }
 
 async function validateToken(accessToken, refreshToken) {
-  const result = await new Promise(function (resolve, reject) {
+  return await new Promise(function (resolve, reject) {
     jwt.verify(accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
       if (err) {
-        return reject({ Code: 400, errorData: { Status: false, error: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt } });
+        reject({ Code: 400, errorData: { Status: false, error: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt } });
       } else {
         const result = await checkStatusUserRefreshToken(decoded.NIK, refreshToken);
         if (!result) {
-          return reject({ Code: 403, errorData: { Status: false, error: "Silahkan login terlebih dahulu!" } });
+          reject({ Code: 403, errorData: { Status: false, error: "Silahkan login terlebih dahulu!" } });
         }
-        return resolve({ Code: 200, errorData: { Status: true, error: "" } });
+        resolve({ Code: 200, errorData: { Status: true, error: "" } });
       }
     });
   });
 }
+
+async function removeFileIfError(Cover, File) {}
