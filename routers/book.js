@@ -84,16 +84,16 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async functio
 
 bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], async function (req, res) {
   let bookObject = structuredClone(req.body);
-  const checkResult = await bookCredentialIsSave(req.body);
   const Bookcategory = req.body.categories;
   let bookFilePath = "";
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
   delete bookObject.refreshToken;
-  console.log("Called");
-  if (checkResult.isCredentialSafeToAdd) {
-    console.log("Called and save");
-    await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
+
+  const checkResult = await bookCredentialIsSave(req.body);
+  await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
+  console.log(checkResult);
+  if (checkResult.status === true) {
     const name = await getBookName(Bookcategory);
     try {
       if (req.files.bookFile) {
@@ -107,39 +107,27 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
         await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
       }
       Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-      // addBookToDb(bookObject);
-      return res.send("berhasil");
+      addBookToDb(bookObject);
     } catch (error) {
       console.log(Object.keys(error));
       console.log(error);
-      return res.send("gagal bang");
     }
+    return res.send("berhasil");
   } else {
     try {
       if (req.files.bookFile) {
-        try {
-          let bookFileExt = req.files.bookFile[0].mimetype.split("/")[1];
-          await access(`uploads/${currentId}.${bookFileExt}`, constants.R_OK | constants.W_OK);
-          await unlink(`uploads/${currentId}.${bookFileExt}`);
-        } catch (error) {
-          console.log(Object.keys(error));
-          console.log(error);
-          return res.send("gagal bang");
-        }
+        let bookFileExt = "txt";
+        await access(`uploads/${currentId}.${bookFileExt}`, constants.R_OK | constants.W_OK);
+        await unlink(`uploads/${currentId}.${bookFileExt}`);
       }
       if (req.files.bookCoverFile) {
-        try {
-          let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
-          await access(`uploads/${currentId}.${bookCoverFileExt}`, constants.R_OK | constants.W_OK);
-          await unlink(`uploads/${currentId}.${bookCoverFileExt}`);
-        } catch (error) {
-          console.log(Object.keys(error));
-          console.log(error);
-          return res.send("gagal bang");
-        }
+        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
+        await access(`uploads/${currentId}.${bookCoverFileExt}`, constants.R_OK | constants.W_OK);
+        await unlink(`uploads/${currentId}.${bookCoverFileExt}`);
       }
     } catch (error) {
-      return res.send(error);
+      console.log(Object.keys(error));
+      console.log(error);
     }
     return res.send("gagal bang");
   }

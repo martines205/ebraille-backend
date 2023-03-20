@@ -5,26 +5,32 @@ const prisma = new PrismaClient();
 
 async function bookCredentialIsSave(credential) {
   try {
-    const bookCredential = [credential.title, credential.isbn13, credential.isbn10];
+    const bookCredential = [credential.titles, credential.isbn];
+    console.log("bookCredential: ", bookCredential);
     const result = await prisma.BookInformation.findFirstOrThrow({
       where: {
         OR: [{ titles: credential.titles }, { isbn: credential.isbn }],
       },
     });
     if (result instanceof PrismaClientKnownRequestError) {
+      console.log(result);
       throw new Error(result);
     } else {
-      // console.log(result);
-      return {
-        isCredentialSafeToAdd: false,
-        warn: bookCredential.map((v) => {
-          if (v === result.title || v === result.isbn10 || v === result.isbn13) return v;
+      console.log(result);
+      const errorInCredential = {};
+      errorInCredential.errorType = "Credential already exist!";
+      errorInCredential.status = false;
+      errorInCredential.message = {
+        warn: bookCredential.filter((v) => {
+          return v === result.titles || v === result.isbn;
         }),
       };
+      return errorInCredential;
     }
   } catch (error) {
+    console.log(Object.keys(error));
     console.log(error);
-    return { isCredentialSafeToAdd: true, warn: [""] };
+    return { status: true, warn: [""] };
   }
 }
 
