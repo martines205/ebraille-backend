@@ -20,6 +20,7 @@ loginRouter.get("/", async (req, res) => {
 loginRouter.get("/byNIK", async (req, res, next) => {
   const nik = req.query.nik;
   const result = await checkStatusUserRefreshToken(nik);
+  console.log("result: ", result);
   if (result === false) next();
   else res.status(400).send({ loginStatus: true, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
 });

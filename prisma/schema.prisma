@@ -39,7 +39,7 @@ model BookInformation {
   languages         String  @db.VarChar
   publishers        String  @db.VarChar
   titles            String  @db.VarChar
-  uploaders         String  @db.VarChar
+  uploader         String  @db.VarChar
   maxBook           Int     @default(6)
   bookCoverFilePath String? @db.VarChar
   bookFilePath      String? @db.VarChar

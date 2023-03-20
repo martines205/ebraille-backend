@@ -65,26 +65,30 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
 
 async function checkStatusUserRefreshToken(nik, token) {
   try {
-    console.log("nik, token: ", nik, token);
     const result = await RedisClient.get(nik);
     if (result !== null && token === result) {
       console.log(`Found: ${nik} => `, result);
       return true;
     }
     const err = new Error();
-    err.message = "Chace miss";
     throw err;
   } catch (error) {
-    console.log("error:", error.message);
-    const tokenInformation = await prisma.tokenInformation.count({
-      where: { AND: [{ nik }, { refreshToken: token }] },
+    const tokenInformation = await prisma.tokenInformation.findFirst({
+      where: { nik },
     });
 
-    console.log("tokenInformation: ", tokenInformation);
-    if (tokenInformation > 0) return true;
-    else return false;
+    if (tokenInformation !== null) {
+      if (token !== undefined && token === tokenInformation.refreshToken) {
+        await RedisClient.set(nik, token).catch((error) => {
+          console.log("Start caching");
+          console.log("nik, token: ", nik, token);
+          console.log(Object.keys(error));
+          console.log(error);
+        });
+        return true;
+      }
+    } else return false;
   }
-  // console.log(`NIK: ${nik} =>`, tokenInformation);
 }
 
 async function getUserRefreshToken(nik) {

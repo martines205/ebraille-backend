@@ -1,5 +1,4 @@
 import Prisma from "@prisma/client";
-import { json } from "express";
 const { PrismaClient, PrismaClientKnownRequestError } = Prisma;
 const prisma = new PrismaClient();
 
@@ -13,25 +12,40 @@ async function bookCredentialIsSave(credential) {
       },
     });
     if (result instanceof PrismaClientKnownRequestError) {
-      console.log(result);
       throw new Error(result);
     } else {
-      console.log(result);
+      let dataIsExistRaw = bookCredential
+        .map((v) => {
+          if (v === result.titles) {
+            return "titles";
+          } else if (v === result.isbn) {
+            return "isbn";
+          }
+        })
+        .toString()
+        .split(",")
+        .filter((v) => v !== "");
+
+      const dataList = `data ${
+        dataIsExistRaw.length === 1
+          ? dataIsExistRaw.at(0) + " telah terdaftar pada sistem !"
+          : dataIsExistRaw.slice(0, dataIsExistRaw.length - 1) + " dan " + dataIsExistRaw.at(-1) + " telah terdaftar pada sistem !"
+      }`;
+
+      console.log(dataList);
       const errorInCredential = {};
       errorInCredential.status = false;
-      errorInCredential.errorType = "Credential already exist!";
-      errorInCredential.message = {
-        warn: bookCredential.filter((v) => {
-          return v === result.titles || v === result.isbn;
-        }),
-      };
+      errorInCredential.errorType = dataList;
+      errorInCredential.warn = bookCredential.filter((v) => {
+        return v === result.titles || v === result.isbn;
+      });
       return errorInCredential;
     }
   } catch (error) {
     console.log(Object.keys(error));
     error.errorType = "";
     console.log(error);
-    return { status: true, errorType: "", message: { warn: [""] } };
+    return { status: true, errorType: "", warn: [""] };
   }
 }
 
@@ -68,10 +82,10 @@ async function addBookToDb(bookObject) {
         await prisma.$disconnect();
         process.exit(1);
       });
-    return { addBookStatus: true, msg: "Penambahan buku berhasil" };
+    return { Status: true, msg: "Penambahan buku berhasil", err: "" };
   } catch (error) {
     return {
-      adduserStatus: false,
+      Status: false,
       msg: "Penambahan buku gagal dengan error",
       err: error,
     };
@@ -126,16 +140,18 @@ async function getBookList() {
         languages: true,
         authors: true,
         year: true,
-        categorys: true,
-        editons: true,
+        categories: true,
+        editions: true,
         titles: true,
         id: false,
       },
     });
+
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
-    console.log(result);
+    console.log("result get book: ", result);
     return { result: true, data: result };
   } catch (error) {
+    console.log("error: ", error);
     return { result: true, data: {} };
   }
 }

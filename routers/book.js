@@ -86,16 +86,16 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
 
 bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, res) {
   let bookObject = structuredClone(req.body);
-  const Bookcategory = req.body.categories;
+  const bookCategory = req.body.categories;
   let bookFilePath = "";
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
   delete bookObject.refreshToken;
 
   const CredentialIsSave = await bookCredentialIsSave(req.body);
-  const folderIsready = await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
+  const folderIsReady = await checkDirIsExistIfNotCreate(BookDir, bookCategory);
 
-  if (folderIsready === false) {
+  if (folderIsReady === false) {
     try {
       if (req.files.bookFile) {
         let bookFileExt = "txt";
@@ -134,44 +134,46 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
     return res.status(404).send(credentialError);
   } else {
     try {
-      const name = await getBookName(Bookcategory);
+      const name = await getBookName(bookCategory);
       if (req.files.bookFile) {
         let bookFileExt = "txt";
-        bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
+        bookFilePath = BookDir + `/${bookCategory}/BookFile/${name}.${bookFileExt}`;
         await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
       }
       if (req.files.bookCoverFile) {
         let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
-        bookCoverFilePath = BookDir + `/${Bookcategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
+        bookCoverFilePath = BookDir + `/${bookCategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
         await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
       }
       Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-      addBookToDb(bookObject);
+      const addBookResult = await addBookToDb(bookObject);
+      console.log(addBookResult);
+      return res.status(200).send({ status: addBookResult.Status, message: addBookResult.msg, warn: addBookResult.err });
     } catch (error) {
       console.log(Object.keys(error));
       console.log(error);
-      return res.send({ status: true, errorType: "", warn: error });
+      return res.status(500).send({ status: false, errorType: "server error", warn: " Error status => DANGER!" });
     }
-    return res.send({ status: true, errorType: "", warn: "" });
   }
 });
 
 bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
-  // jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
-  //   if (err) {
-  //     console.error({ Error: { Route: "/getBook", "Error message": err.message, "Request query: ": req.query } });
-  //     res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
-  //   } else {
-  //     const result = await checkStatusUserRefreshToken(decoded.NIK, req.query.refreshToken);
-  //     console.log("/getBook", result);
-  //     if (result === false) return res.status(403).send({ Status: false, error: "Silahkan login terlebih dahulu!" });
-  //     next();
-  //   }
-  // });
+  const accessToken = req.query.accessToken;
+  const refreshToken = req.query.refreshToken;
+  try {
+    await validateToken(accessToken, refreshToken);
+    next();
+  } catch (error) {
+    error.Route = "/getBook";
+    error.method = "GET";
+    console.log("error: ", error);
+    return res.status(error.Code).send(error.errorData);
+  }
 });
 
 bookRouter.get("/getBook", async function (req, res) {
   const result = await getBookList();
+  console.log("result: ", result);
   res.status(200).send({ status: result.result, data: result.data });
 });
 
@@ -236,14 +238,19 @@ async function checkDirIsExistIfNotCreate(path, category) {
 }
 
 async function validateRequestField(req, res, next) {
-  const uploadFiled = ["titles", "isbn", "authors", "editions", "year", "publishers", "categories", "languages", "uploaders", "availability", "accessToken", "refreshToken"].sort();
-  const reqField = Object.keys(req.body).sort();
+  let bookObject = structuredClone(req.body);
+  delete bookObject.accessToken;
+  delete bookObject.refreshToken;
+  const uploadFiled = ["titles", "isbn", "authors", "editions", "year", "publishers", "categories", "languages", "uploader", "availability"].sort();
+  const reqField = Object.keys(bookObject).sort();
+  console.log("uploadFiled, reqField: ", uploadFiled, reqField);
   const isEqual = uploadFiled.toString() === reqField.toString();
-  const emptyField = Object.keys(req.body).filter((v, i) => req.body[`${v}`] === "");
-  // console.log("uploadFiled === reqField : ", isEqual);
+
+  if (isEqual === false) return res.status(400).send({ Status: false, error: `Request tidak valid` });
+
+  const emptyField = Object.keys(bookObject).filter((v, i) => bookObject[`${v}`] === "");
   // console.log("emptyField: ", emptyField);
-  // console.log("isEqual && emptyField.length !== 0: ", isEqual && emptyField.length === 0);
-  if (isEqual && emptyField.length === 0) return next();
+  if (emptyField.length === 0) return next();
   return res.status(400).send({ Status: false, errorMsg: `Field ${emptyField.toString()} tidak boleh kosong!` });
 }
 
