@@ -64,7 +64,7 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async functio
   const accessToken = req.body.accessToken;
   const refreshToken = req.body.refreshToken;
   try {
-    const result = await validateToken(accessToken, refreshToken);
+    // const result = await validateToken(accessToken, refreshToken);
     if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
@@ -134,17 +134,17 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
 });
 
 bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
-  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
-    if (err) {
-      console.error({ Error: { Route: "/getBook", "Error message": err.message, "Request query: ": req.query } });
-      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
-    } else {
-      const result = await checkStatusUserRefreshToken(decoded.NIK, req.query.refreshToken);
-      console.log("/getBook", result);
-      if (result === false) return res.status(403).send({ Status: false, error: "Silahkan login terlebih dahulu!" });
-      next();
-    }
-  });
+  // jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
+  //   if (err) {
+  //     console.error({ Error: { Route: "/getBook", "Error message": err.message, "Request query: ": req.query } });
+  //     res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
+  //   } else {
+  //     const result = await checkStatusUserRefreshToken(decoded.NIK, req.query.refreshToken);
+  //     console.log("/getBook", result);
+  //     if (result === false) return res.status(403).send({ Status: false, error: "Silahkan login terlebih dahulu!" });
+  //     next();
+  //   }
+  // });
 });
 
 bookRouter.get("/getBook", async function (req, res) {
