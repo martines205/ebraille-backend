@@ -90,6 +90,7 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
   delete bookObject.refreshToken;
+  console.log(Called);
   if (checkResult.isCredentialSafeToAdd) {
     await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
     const name = await getBookName(Bookcategory);
@@ -104,8 +105,8 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
       await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
     }
     Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-    return res.send("berhasil");
     addBookToDb(bookObject);
+    return res.send("berhasil");
   } else {
     try {
       if (req.files.bookFile) {
