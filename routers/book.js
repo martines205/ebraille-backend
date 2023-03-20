@@ -10,7 +10,7 @@
 /book/editBook ~
 ...
 */
-import express from "express";
+import express, { response } from "express";
 const bookRouter = express.Router();
 const BookDir = "./bookDir";
 const tempUpload = "./uploads";
@@ -61,21 +61,28 @@ const currentId = Date.now() + "-" + Math.round(Math.random() * 1e9);
 
 bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
   const isbn = req.body.isbn;
-
-  if (isbn === "" || isbn === undefined) return res.send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
-
-  if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
-    unlink(req.files.bookFile[0].path);
-    unlink(req.files.bookCoverFile[0].path);
-    res.send({ Status: false, errorMsg: `Book File is not valid!. book file should be on "brf" format` });
-  } else if (req.files.bookCoverFile[0].mimetype !== "image/png" && req.files.bookCoverFile[0].mimetype !== "image/jpeg") {
-    unlink(req.files.bookFile[0].path);
-    unlink(req.files.bookCoverFile[0].path);
-    res.send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
-  } else next();
+  const accessToken = req.body.accessToken;
+  const refreshToken = req.body.refreshToken;
+  try {
+    const result = await validateToken(accessToken, refreshToken);
+    if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
+    if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
+      unlink(req.files.bookFile[0].path);
+      unlink(req.files.bookCoverFile[0].path);
+      return res.status(400).send({ Status: false, errorMsg: `Book File is not valid!. book file should be on "brf" format` });
+    } else if (req.files.bookCoverFile[0].mimetype !== "image/png" && req.files.bookCoverFile[0].mimetype !== "image/jpeg") {
+      unlink(req.files.bookFile[0].path);
+      unlink(req.files.bookCoverFile[0].path);
+      return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
+    }
+    next();
+  } catch (error) {
+    console.log(error);
+    return res.status(error.Code).send(error.errorData);
+  }
 });
 
-bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, res) {
+bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], async function (req, res) {
   let bookObject = structuredClone(req.body);
   const checkResult = await bookCredentialIsSave(req.body);
   const Bookcategory = req.body.categorys;
@@ -121,7 +128,7 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
     } catch (error) {
       return res.send(error);
     }
-    res.send("gagal bang");
+    return res.send("gagal bang");
   }
 });
 
@@ -132,6 +139,7 @@ bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (r
       res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
     } else {
       const result = await checkStatusUserRefreshToken(decoded.NIK, req.query.refreshToken);
+      console.log("/getBook", result);
       if (result === false) return res.status(403).send({ Status: false, error: "Silahkan login terlebih dahulu!" });
       next();
     }
@@ -193,4 +201,31 @@ async function checkDirIsExistIfNotCreate(path, category) {
       });
     } catch (err) {}
   }
+}
+
+async function validateRequestField(req, res, next) {
+  const uploadFiled = ["titles", "isbn", "authors", "editons", "year", "publishers", "categorys", "languages", "uploaders", "availability", "accessToken", "refreshToken"].sort();
+  const reqField = Object.keys(req.body).sort();
+  const isEqual = uploadFiled.toString() === reqField.toString();
+  console.log("uploadFiled === reqField : ", isEqual);
+  const emptyField = Object.keys(req.body).filter((v, i) => req.body[`${v}`] === "");
+  console.log("emptyField: ", emptyField);
+  if (isEqual && emptyField.length === 0) next();
+  return res.status(400).send({ Status: false, errorMsg: `Field ${emptyField.toString()} tidak boleh kosong!` });
+}
+
+async function validateToken(accessToken, refreshToken) {
+  const result = await new Promise(function (resolve, reject) {
+    jwt.verify(accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
+      if (err) {
+        return reject({ Code: 400, errorData: { Status: false, error: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt } });
+      } else {
+        const result = await checkStatusUserRefreshToken(decoded.NIK, refreshToken);
+        if (!result) {
+          return reject({ Code: 403, errorData: { Status: false, error: "Silahkan login terlebih dahulu!" } });
+        }
+        return resolve({ Code: 200, errorData: { Status: true, error: "" } });
+      }
+    });
+  });
 }

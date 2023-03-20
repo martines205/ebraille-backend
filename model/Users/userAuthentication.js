@@ -64,6 +64,7 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
 }
 
 async function checkStatusUserRefreshToken(nik, token) {
+  console.log("nik, token : ", nik, token);
   try {
     console.log("nik, token: ", nik, token);
     const result = await RedisClient.get(nik);
@@ -80,7 +81,8 @@ async function checkStatusUserRefreshToken(nik, token) {
     const tokenInformation = await prisma.tokenInformation.count({
       where: { AND: [{ nik }, { refreshToken: token }] },
     });
-    console.log(tokenInformation);
+
+    console.log("tokenInformation: ", tokenInformation);
     if (tokenInformation > 0) return true;
     else return false;
   }
