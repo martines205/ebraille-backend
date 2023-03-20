@@ -90,8 +90,9 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
   delete bookObject.refreshToken;
-  console.log(Called);
+  console.log("Called");
   if (checkResult.isCredentialSafeToAdd) {
+    console.log("Called and save");
     await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
     const name = await getBookName(Bookcategory);
     if (req.files.bookFile) {
