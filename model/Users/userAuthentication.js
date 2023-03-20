@@ -64,11 +64,9 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
 }
 
 async function checkStatusUserRefreshToken(nik, token) {
-  console.log("nik, token : ", nik, token);
   try {
     console.log("nik, token: ", nik, token);
     const result = await RedisClient.get(nik);
-    console.log("result: ", result);
     if (result !== null && token === result) {
       console.log(`Found: ${nik} => `, result);
       return true;
