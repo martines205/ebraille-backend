@@ -85,9 +85,11 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async functio
 bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], async function (req, res) {
   let bookObject = structuredClone(req.body);
   const checkResult = await bookCredentialIsSave(req.body);
-  const Bookcategory = req.body.categorys;
+  const Bookcategory = req.body.categories;
   let bookFilePath = "";
   let bookCoverFilePath = "";
+  delete bookObject.accessToken;
+  delete bookObject.refreshToken;
   if (checkResult.isCredentialSafeToAdd) {
     await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
     const name = await getBookName(Bookcategory);
@@ -204,13 +206,14 @@ async function checkDirIsExistIfNotCreate(path, category) {
 }
 
 async function validateRequestField(req, res, next) {
-  const uploadFiled = ["titles", "isbn", "authors", "editons", "year", "publishers", "categorys", "languages", "uploaders", "availability", "accessToken", "refreshToken"].sort();
+  const uploadFiled = ["titles", "isbn", "authors", "editions", "year", "publishers", "categories", "languages", "uploaders", "availability", "accessToken", "refreshToken"].sort();
   const reqField = Object.keys(req.body).sort();
   const isEqual = uploadFiled.toString() === reqField.toString();
   console.log("uploadFiled === reqField : ", isEqual);
   const emptyField = Object.keys(req.body).filter((v, i) => req.body[`${v}`] === "");
   console.log("emptyField: ", emptyField);
-  if (isEqual && emptyField.length === 0) next();
+  console.log("isEqual && emptyField.length !== 0: ", isEqual && emptyField.length === 0);
+  if (isEqual && emptyField.length === 0) return next();
   return res.status(400).send({ Status: false, errorMsg: `Field ${emptyField.toString()} tidak boleh kosong!` });
 }
 

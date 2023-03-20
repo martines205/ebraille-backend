@@ -36,8 +36,6 @@ model BookInformation {
   year              String  @db.VarChar
   availability      String  @db.VarChar
   booksCode         String  @db.VarChar
-  categories         String  @db.VarChar
-  editions           String  @db.VarChar
   languages         String  @db.VarChar
   publishers        String  @db.VarChar
   titles            String  @db.VarChar
@@ -47,4 +45,6 @@ model BookInformation {
   bookFilePath      String? @db.VarChar
   authors           String  @db.VarChar
   isbn              String  @db.VarChar
+  categories        String  @db.VarChar
+  editions          String  @db.VarChar
 }

@@ -28,8 +28,8 @@ async function bookCredentialIsSave(credential) {
   }
 }
 
-async function getBookName(category) {
-  const bookCode = "BO" + category.slice(0, 2).toUpperCase();
+async function getBookName(categories) {
+  const bookCode = "BO" + categories.slice(0, 2).toUpperCase();
   try {
     const result = await prisma.bookInformation.findMany({
       where: {
