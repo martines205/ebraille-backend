@@ -59,12 +59,12 @@ import { checkStatusUserRefreshToken } from "../model/Users/userAuthentication.j
 
 const currentId = Date.now() + "-" + Math.round(Math.random() * 1e9);
 
-bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
+bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField], async function (req, res, next) {
   const isbn = req.body.isbn;
   const accessToken = req.body.accessToken;
   const refreshToken = req.body.refreshToken;
   try {
-    // const result = await validateToken(accessToken, refreshToken);
+    const result = await validateToken(accessToken, refreshToken);
     if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
@@ -74,15 +74,14 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async functio
       unlink(req.files.bookFile[0].path);
       unlink(req.files.bookCoverFile[0].path);
       return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
-    }
-    next();
+    } else next();
   } catch (error) {
     console.log(error);
     return res.status(error.Code).send(error.errorData);
   }
 });
 
-bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], async function (req, res) {
+bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, res) {
   let bookObject = structuredClone(req.body);
   const Bookcategory = req.body.categories;
   let bookFilePath = "";
