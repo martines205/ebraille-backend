@@ -95,19 +95,23 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded, validateRequestField], a
     console.log("Called and save");
     await checkDirIsExistIfNotCreate(BookDir, Bookcategory);
     const name = await getBookName(Bookcategory);
-    if (req.files.bookFile) {
-      let bookFileExt = "txt";
-      bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
-      await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
+    try {
+      if (req.files.bookFile) {
+        let bookFileExt = "txt";
+        bookFilePath = BookDir + `/${Bookcategory}/BookFile/${name}.${bookFileExt}`;
+        await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
+      }
+      if (req.files.bookCoverFile) {
+        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
+        bookCoverFilePath = BookDir + `/${Bookcategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
+        await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
+      }
+      Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
+      // addBookToDb(bookObject);
+      return res.send("berhasil");
+    } catch (error) {
+      console.log(error);
     }
-    if (req.files.bookCoverFile) {
-      let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
-      bookCoverFilePath = BookDir + `/${Bookcategory}/BookCoverFile/${name}.${bookCoverFileExt}`;
-      await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
-    }
-    Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
-    // addBookToDb(bookObject);
-    return res.send("berhasil");
   } else {
     try {
       if (req.files.bookFile) {
