@@ -43,7 +43,7 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
   else {
     try {
       const hashedPassword = await Bcrypt.hash(password, getRandomArbitrary(9, 15)).then((res) => res);
-      const result = await prismaMain(firstName, lastName, gender, nik, username, email, hashedPassword)
+      await prismaMain(firstName, lastName, gender, nik, username, email, hashedPassword)
         .then(async () => {
           await prisma.$disconnect();
         })
@@ -52,10 +52,10 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
           await prisma.$disconnect();
           process.exit(1);
         });
-      return { adduserStatus: true, msg: "Registarasi berhasil" };
+      return { Status: true, msg: "Registarasi berhasil" };
     } catch (error) {
       return {
-        adduserStatus: false,
+        Status: false,
         msg: "Registarasi gagal dengan error",
         err: error,
       };

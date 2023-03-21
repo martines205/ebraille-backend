@@ -16,18 +16,10 @@ registerRouter.post("/", [urlencoded, jsonParser], async (req, res) => {
   const username = req.body.username;
   const email = req.body.email;
   const password = req.body.password;
-  const result = await addNewUser(
-    firstName,
-    lastName,
-    gender,
-    nik,
-    username,
-    email,
-    password
-  );
+  const result = await addNewUser(firstName, lastName, gender, nik, username, email, password);
 
-  console.log("result.adduserStatus: ", result.adduserStatus);
-  result.adduserStatus
+  console.log("result.Status: ", result.Status);
+  result.Status
     ? res.send({ msg: result.msg })
     : res.send({
         msg: `Resistrasi gagal, data ${result.msg.toString()} sudah terdaftar`,

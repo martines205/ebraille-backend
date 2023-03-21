@@ -144,6 +144,7 @@ async function getBookList() {
         editions: true,
         titles: true,
         id: false,
+        bookCoverFilePath: true,
       },
     });
 

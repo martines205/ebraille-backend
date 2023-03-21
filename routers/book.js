@@ -178,18 +178,28 @@ bookRouter.get("/getBook", async function (req, res) {
 });
 
 bookRouter.get("/downloadBook", async function (req, res, next) {
-  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, (err, decoded) => {
-    if (err) {
-      console.log("Error:", err.message, "\nRequest query: ", req.query);
-      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
-    } else next();
-  });
+  const accessToken = req.query.accessToken;
+  const refreshToken = req.query.refreshToken;
+  const isbn = req.query.isbn;
+  // const responseTemplate = { Status: undefined };
+  try {
+    await validateToken(accessToken, refreshToken);
+  } catch (error) {
+    console.log(Object.keys(error));
+    console.log(error.errorData);
+    return res.status(error.Code).send(error.errorData);
+  }
+  if (isbn === undefined || isbn === "") {
+    // return res.status(400).send({error.errorData});
+  }
+  return next();
 });
+
 bookRouter.get("/downloadBook", async function (req, res) {
-  const dBresult = await getBookPath(req.query.isbn);
-  if (dBresult.result) {
-    res.download(dBresult.path);
-  } else res.send({ error: dBresult.errorMsg });
+  const dbResult = await getBookPath(req.query.isbn);
+  if (dbResult.result) {
+    res.download(dbResult.path);
+  } else res.send({ error: dbResult.errorMsg });
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
