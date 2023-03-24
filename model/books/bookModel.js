@@ -44,13 +44,14 @@ async function bookCredentialIsSave(credential) {
   } catch (error) {
     console.log(Object.keys(error));
     error.errorType = "";
-    console.log(error);
+    console.log(error.name);
     return { status: true, errorType: "", warn: [""] };
   }
 }
 
 async function getBookName(categories) {
   const bookCode = "BO" + categories.slice(0, 2).toUpperCase();
+  // console.log("bookCode: ", bookCode);
   try {
     const result = await prisma.bookInformation.findMany({
       where: {
@@ -59,11 +60,14 @@ async function getBookName(categories) {
       orderBy: { id: "desc" },
       take: 1,
     });
+    // console.log(result);
+    console.log("result.lengthresult.length: ", result.length);
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
     else {
-      return bookCode + "-" + result.id.toString();
+      return bookCode + "-" + (result[0].id + BigInt(1)).toString();
     }
   } catch (error) {
+    console.log(error);
     return bookCode + "-" + "1";
   }
 }
@@ -112,20 +116,15 @@ async function setBookmarkToDb(userId, bookmarkInformation) {
   console.log(JSON.stringify(bookmarkInformation));
   console.log("userId , BookID: ", userId, bookmarkInformation);
   try {
-    await prisma.bookmark
-      .upsert({ where: { userId: userId }, update: { bookmarkInformation }, create: { userId: userId, bookmarkInformation: bookmarkInformation } })
-      .then(async () => {
-        await prisma.$disconnect();
-      })
-      .catch(async (e) => {
-        console.error(e);
-        await prisma.$disconnect();
-        process.exit(1);
-      });
+    await prisma.bookmark.upsert({ where: { userId: userId }, update: { bookmarkInformation }, create: { userId: userId, bookmarkInformation: bookmarkInformation } }).then(async () => {
+      await prisma.$disconnect();
+    });
     console.log("berhasil");
     return { addBookStatus: true, msg: "Penambahan bookmark berhasil" };
   } catch (error) {
+    console.error(error);
     console.log("gagal");
+    await prisma.$disconnect();
     return { addBookStatus: false, msg: "Penambahan bookmark gagal", errMsg: error };
   }
 }
@@ -144,7 +143,6 @@ async function getBookList() {
         editions: true,
         titles: true,
         id: false,
-        bookCoverFilePath: true,
       },
     });
 
@@ -167,4 +165,19 @@ async function getUserBookmarkInformation(nik) {
   }
 }
 
-export { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getUserBookmarkInformation, getBookList };
+async function getBookCoverPath(isbn) {
+  try {
+    const result = await prisma.bookInformation.findMany({
+      where: { isbn },
+    });
+    if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    else {
+      return { result: true, path: result[0].bookCoverFilePath, errorMsg: "" };
+    }
+  } catch (error) {
+    console.log(error);
+    return { result: false, path: "NaN", errorMsg: "Cover tidak tersedia, silahkan cek kembali code ISBN yang diberikan!" };
+  }
+}
+
+export { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getUserBookmarkInformation, getBookList, getBookCoverPath };

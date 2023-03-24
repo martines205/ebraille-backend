@@ -20,7 +20,8 @@ loginRouter.get("/", async (req, res) => {
 loginRouter.get("/byNIK", async (req, res, next) => {
   const nik = req.query.nik;
   const result = await checkStatusUserRefreshToken(nik);
-  console.log("result: ", result);
+  // console.log("result: ", result);
+  console.trace("result: ", result);
   if (result === false) return next();
   else return res.status(400).send({ loginStatus: true, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
 });
@@ -37,6 +38,9 @@ loginRouter.get("/byNIK", async (req, res) => {
         res.send({ loginStatus: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });
       }
       const refreshToken = await getUserRefreshToken(nik);
+      if (refreshToken === "") {
+        res.status(404).send({ loginStatus: false, msg: "server Error" });
+      }
       res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: token, refreshToken, bookmarkList: bookmark });
     });
   } else res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: "" });

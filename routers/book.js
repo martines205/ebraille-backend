@@ -54,7 +54,7 @@ const cpUpload = upload.fields([{ name: "bookFile" }, { name: "bookCoverFile" }]
 import { mkdir, access, constants, unlink } from "node:fs/promises";
 import { moveFile } from "move-file";
 import jwt from "jsonwebtoken";
-import { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getBookList } from "../model/books/bookModel.js";
+import { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getBookList, getBookCoverPath } from "../model/books/bookModel.js";
 import { checkStatusUserRefreshToken } from "../model/Users/userAuthentication.js";
 
 const currentId = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -65,7 +65,8 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
   const refreshToken = req.body.refreshToken;
   try {
     const result = await validateToken(accessToken, refreshToken);
-    console.log("result: ", result);
+    // console.log("req.files", req.files);
+    // console.log("result: ", result);
     if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
@@ -81,12 +82,13 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
     error.method = "POST";
     console.log("error: ", error);
     return res.status(error.Code).send(error.errorData);
+    // return res.status(400).send("error.errorData");
   }
 });
 
 bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, res) {
   let bookObject = structuredClone(req.body);
-  const bookCategory = req.body.categories;
+  const bookCategory = req.body.categories.toUpperCase();
   let bookFilePath = "";
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
@@ -135,6 +137,8 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
   } else {
     try {
       const name = await getBookName(bookCategory);
+      console.log("name: ", name);
+
       if (req.files.bookFile) {
         let bookFileExt = "txt";
         bookFilePath = BookDir + `/${bookCategory}/BookFile/${name}.${bookFileExt}`;
@@ -190,7 +194,25 @@ bookRouter.get("/downloadBook", async function (req, res, next) {
     return res.status(error.Code).send(error.errorData);
   }
   if (isbn === undefined || isbn === "") {
-    // return res.status(400).send({error.errorData});
+    return res.status(400).send({ status: false, error: "isbn gak ada" });
+  }
+  return next();
+});
+
+bookRouter.get("/downloadBook", async function (req, res, next) {
+  const accessToken = req.query.accessToken;
+  const refreshToken = req.query.refreshToken;
+  const isbn = req.query.isbn;
+  // const responseTemplate = { Status: undefined };
+  try {
+    await validateToken(accessToken, refreshToken);
+  } catch (error) {
+    console.log(Object.keys(error));
+    console.log(error.errorData);
+    return res.status(error.Code).send(error.errorData);
+  }
+  if (isbn === undefined || isbn === "") {
+    return res.status(400).send({ status: false, error: "Buku tidak tersedia!" });
   }
   return next();
 });
@@ -199,6 +221,36 @@ bookRouter.get("/downloadBook", async function (req, res) {
   const dbResult = await getBookPath(req.query.isbn);
   if (dbResult.result) {
     res.download(dbResult.path);
+  } else res.send({ error: dbResult.errorMsg });
+});
+
+bookRouter.use("/images", express.static("images"));
+
+bookRouter.get("/getCover", async function (req, res, next) {
+  const accessToken = req.query.accessToken;
+  const refreshToken = req.query.refreshToken;
+  const isbn = req.query.isbn;
+  // try {
+  //   await validateToken(accessToken, refreshToken);
+  // } catch (error) {
+  //   console.log(Object.keys(error));
+  //   console.log(error.errorData);
+  //   return res.status(error.Code).send(error.errorData);
+  // }
+  // if (isbn === undefined || isbn === "") {
+  //   return res.status(400).send({ status: false, error: "buku tidak tersedia" });
+  // }
+  return next();
+});
+
+bookRouter.get("/getCover", async function (req, res) {
+  const isbn = req.query.isbn;
+  const dbResult = await getBookCoverPath(isbn);
+  console.log(dbResult);
+
+  return res.status(400).send({ status: false, error: "buku tidak tersedia" });
+  if (dbResult.result) {
+    return res.send({ error: dbResult.errorMsg });
   } else res.send({ error: dbResult.errorMsg });
 });
 
@@ -224,18 +276,19 @@ bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, r
 export default bookRouter;
 
 async function checkDirIsExistIfNotCreate(path, category) {
+  category = category.toUpperCase();
   try {
-    await access(path + `/${category}/BookFile/`, constants.R_OK | constants.W_OK);
-    await access(path + `/${category}/BookCoverFile/`, constants.R_OK | constants.W_OK);
+    await access(path + `/${category.toUpperCase()}/BookFile/`, constants.R_OK | constants.W_OK);
+    await access(path + `/${category.toUpperCase()}/BookCoverFile/`, constants.R_OK | constants.W_OK);
     console.log("\nFolder exist!");
     return true;
   } catch {
     console.log("\nFolder do not exist! , try to create folder!");
     try {
-      const createBookFileDir = await mkdir(path + `/${category}/BookFile/`, {
+      const createBookFileDir = await mkdir(path + `/${category.toUpperCase()}/BookFile/`, {
         recursive: true,
       });
-      const createBookCoverFileDir = await mkdir(path + `/${category}/BookCoverFile/`, {
+      const createBookCoverFileDir = await mkdir(path + `/${category.toUpperCase()}/BookCoverFile/`, {
         recursive: true,
       });
       console.log("success to to create folder!");
@@ -253,7 +306,7 @@ async function validateRequestField(req, res, next) {
   delete bookObject.refreshToken;
   const uploadFiled = ["titles", "isbn", "authors", "editions", "year", "publishers", "categories", "languages", "uploader", "availability"].sort();
   const reqField = Object.keys(bookObject).sort();
-  console.log("uploadFiled, reqField: ", uploadFiled, reqField);
+  // console.log("uploadFiled, reqField: ", uploadFiled, reqField);
   const isEqual = uploadFiled.toString() === reqField.toString();
 
   if (isEqual === false) return res.status(400).send({ Status: false, error: `Request tidak valid` });

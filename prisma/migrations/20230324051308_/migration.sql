@@ -23,22 +23,34 @@ CREATE TABLE "UserInformation" (
 );
 
 -- CreateTable
+CREATE TABLE "TokenInformation" (
+    "nik" VARCHAR NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "refreshToken" VARCHAR NOT NULL,
+
+    CONSTRAINT "TokenInformation_pkey" PRIMARY KEY ("nik")
+);
+
+-- CreateTable
 CREATE TABLE "BookInformation" (
     "id" BIGSERIAL NOT NULL,
     "year" VARCHAR NOT NULL,
     "availability" VARCHAR NOT NULL,
     "booksCode" VARCHAR NOT NULL,
-    "categorys" VARCHAR NOT NULL,
-    "editons" VARCHAR NOT NULL,
     "languages" VARCHAR NOT NULL,
     "publishers" VARCHAR NOT NULL,
     "titles" VARCHAR NOT NULL,
-    "uploaders" VARCHAR NOT NULL,
     "maxBook" INTEGER NOT NULL DEFAULT 6,
     "bookCoverFilePath" VARCHAR,
     "bookFilePath" VARCHAR,
     "authors" VARCHAR NOT NULL,
     "isbn" VARCHAR NOT NULL,
+    "categories" VARCHAR NOT NULL,
+    "editions" VARCHAR NOT NULL,
+    "uploader" VARCHAR NOT NULL,
 
     CONSTRAINT "BookInformation_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TokenInformation_nik_key" ON "TokenInformation"("nik");

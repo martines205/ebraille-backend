@@ -67,44 +67,56 @@ async function checkStatusUserRefreshToken(nik, token) {
   try {
     const result = await RedisClient.get(nik);
     if (result !== null && token === result) {
-      console.log(`Found: ${nik} => `, result);
+      // console.log(`Found: ${nik} => `, result);
+      // console.trace(`Found: ${nik} => `, result);
       return true;
     }
     const err = new Error();
     throw err;
   } catch (error) {
-    const tokenInformation = await prisma.tokenInformation.findFirst({
-      where: { nik },
-    });
+    try {
+      const tokenInformation = await prisma.tokenInformation.findFirst({
+        where: { nik },
+      });
 
-    if (tokenInformation !== null) {
-      if (token !== undefined && token === tokenInformation.refreshToken) {
-        await RedisClient.set(nik, token).catch((error) => {
-          console.log("Start caching");
-          console.log("nik, token: ", nik, token);
-          console.log(Object.keys(error));
-          console.log(error);
-        });
-        return true;
-      }
-    } else return false;
+      if (tokenInformation !== null) {
+        if (token !== undefined && token === tokenInformation.refreshToken) {
+          await RedisClient.set(nik, token).catch((error) => {
+            console.log("Start caching");
+            console.log("nik, token: ", nik, token);
+            console.log(Object.keys(error));
+            console.log(error);
+          });
+          return true;
+        }
+      } else return false;
+    } catch (error) {
+      console.log("error", error);
+      return false;
+    }
   }
 }
 
 async function getUserRefreshToken(nik) {
   const refToken = crypto.randomBytes(25).toString("hex");
-  const result = await prisma.tokenInformation.upsert({
-    where: { nik: nik },
-    update: { refreshToken: refToken },
-    create: {
-      nik: nik.toString(),
-      refreshToken: refToken,
-    },
-  });
-  console.log(`NIK: ${nik} =>`, { result });
-  await RedisClient.set(`${nik}`, refToken);
-  console.log(`RedisClient => ${nik} =>`, await RedisClient.get(nik));
-  return refToken;
+  try {
+    const result = await prisma.tokenInformation.upsert({
+      where: { nik: nik },
+      update: { refreshToken: refToken },
+      create: {
+        nik: nik.toString(),
+        refreshToken: refToken,
+      },
+    });
+    // console.trace(`NIK: ${nik} =>`, { result });
+    await RedisClient.set(`${nik}`, refToken);
+    // console.log(`RedisClient => ${nik} =>`, await RedisClient.get(nik));
+    // console.trace(`RedisClient => ${nik} =>`, await RedisClient.get(nik));
+    return refToken;
+  } catch (error) {
+    console.log(error);
+    return "";
+  }
 }
 
 async function deleteUserRefreshToken(nik) {
@@ -112,7 +124,7 @@ async function deleteUserRefreshToken(nik) {
     const statusRefreshToken = await prisma.tokenInformation.delete({
       where: { nik: nik },
     });
-    console.log(`NIK: ${nik} =>`, { statusRefreshToken }, "=> deleted~!");
+    // console.log(`NIK: ${nik} =>`, { statusRefreshToken }, "=> deleted~!");
     return true;
   } catch (error) {
     console.log(`RefreshToken with NIK "${nik}" unavailable!`);
