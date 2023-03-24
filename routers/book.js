@@ -255,6 +255,7 @@ bookRouter.get("/getCover", async function (req, res) {
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
+  console.log(req.body);
   try {
     const bookmark = Object.keys(req.body.bookmarkInformation).length;
     const accessToken = req.body.accessToken;
@@ -266,7 +267,7 @@ bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, r
     } else next();
   } catch (error) {
     console.trace("error: ", error);
-    res.send({ Status: false, error: error });
+    res.status(404).send({ Status: false, error: error });
   }
 });
 
