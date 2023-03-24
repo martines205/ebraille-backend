@@ -256,16 +256,18 @@ bookRouter.get("/getCover", async function (req, res) {
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
   const bookmark = req.body.bookmarkInformation.length;
-  jwt.verify(req.query.accessToken, "prvK", { algorithm: "HS256" }, (err, decoded) => {
-    if (err) {
-      console.log("Error:", err.message, "\nRequest query: ", req.query);
-      res.send({ Status: false, errorMsg: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt });
-    }
-  });
-  console.log(bookmark < 10);
-  if (bookmark > 10) {
-    res.status(404).send({ error: "bang bookmark nya kebanyakan!" });
-  } else next();
+  const accessToken = req.body.accessToken;
+  const refreshToken = req.body.refreshToken;
+  try {
+    await validateToken(accessToken, refreshToken);
+    console.log(bookmark < 10);
+    if (bookmark > 10) {
+      res.status(404).send({ error: "bang bookmark nya kebanyakan!" });
+    } else next();
+  } catch (error) {
+    console.trace("error: ", error);
+    res.send({ Status: false, error: error });
+  }
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res) {
