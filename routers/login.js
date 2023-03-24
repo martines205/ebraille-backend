@@ -18,12 +18,16 @@ loginRouter.get("/", async (req, res) => {
 });
 
 loginRouter.get("/byNIK", async (req, res, next) => {
-  const nik = req.query.nik;
-  const result = await checkStatusUserRefreshToken(nik);
-  // console.log("result: ", result);
-  console.trace("result: ", result);
-  if (result === false) return next();
-  else return res.status(400).send({ loginStatus: true, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
+  try {
+    const nik = req.query.nik;
+    const result = await checkStatusUserRefreshToken(nik);
+    // console.log("result: ", result);
+    console.trace("result: ", result);
+    if (result === false) return next();
+    else return res.status(400).send({ loginStatus: false, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
+  } catch (error) {
+    return res.status(400).send({ loginStatus: false, error: error });
+  }
 });
 
 loginRouter.get("/byNIK", async (req, res) => {

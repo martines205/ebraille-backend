@@ -255,10 +255,10 @@ bookRouter.get("/getCover", async function (req, res) {
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
-  const bookmark = req.body.bookmarkInformation.length;
-  const accessToken = req.body.accessToken;
-  const refreshToken = req.body.refreshToken;
   try {
+    const bookmark = Object.keys(req.body.bookmarkInformation).length;
+    const accessToken = req.body.accessToken;
+    const refreshToken = req.body.refreshToken;
     await validateToken(accessToken, refreshToken);
     console.log(bookmark < 10);
     if (bookmark > 10) {
