@@ -113,17 +113,14 @@ async function getBookPath(isbn) {
 }
 
 async function setBookmarkToDb(userId, bookmarkInformation) {
-  console.log(JSON.stringify(bookmarkInformation));
-  console.log("userId , BookID: ", userId, bookmarkInformation);
   try {
     await prisma.bookmark.upsert({ where: { userId: userId }, update: { bookmarkInformation }, create: { userId: userId, bookmarkInformation: bookmarkInformation } }).then(async () => {
       await prisma.$disconnect();
     });
-    console.log("berhasil");
     return { addBookStatus: true, msg: "Penambahan bookmark berhasil" };
   } catch (error) {
-    console.error(error);
-    console.log("gagal");
+    console.trace("status: ", "Gagal");
+    console.trace("error: ", error);
     await prisma.$disconnect();
     return { addBookStatus: false, msg: "Penambahan bookmark gagal", errMsg: error };
   }
@@ -145,12 +142,10 @@ async function getBookList() {
         id: false,
       },
     });
-
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
-    console.log("result get book: ", result);
     return { result: true, data: result };
   } catch (error) {
-    console.log("error: ", error);
+    console.trace("error: ", error);
     return { result: true, data: {} };
   }
 }
@@ -158,24 +153,25 @@ async function getBookList() {
 async function getUserBookmarkInformation(nik) {
   try {
     const result = await prisma.bookmark.findFirst({ where: { userId: nik } });
-    console.log(result.bookmarkInformation);
     return { addBookStatus: true, msg: result.bookmarkInformation };
   } catch (error) {
+    console.trace("error: ", error);
     return { addBookStatus: false, msg: error };
   }
 }
 
 async function getBookCoverPath(isbn) {
   try {
+    const isbnTarget = isbn.toString();
     const result = await prisma.bookInformation.findMany({
-      where: { isbn },
+      where: { isbn: isbnTarget },
     });
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
     else {
       return { result: true, path: result[0].bookCoverFilePath, errorMsg: "" };
     }
   } catch (error) {
-    console.log(error);
+    console.trace("error: ", error);
     return { result: false, path: "NaN", errorMsg: "Cover tidak tersedia, silahkan cek kembali code ISBN yang diberikan!" };
   }
 }

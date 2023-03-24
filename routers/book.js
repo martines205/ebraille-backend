@@ -10,8 +10,12 @@
 /book/editBook ~
 ...
 */
+
+import statPath from "path";
+
 import express, { response } from "express";
 const bookRouter = express.Router();
+
 const BookDir = "./bookDir";
 const tempUpload = "./uploads";
 import multer from "multer";
@@ -78,11 +82,11 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
       return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
     } else return next();
   } catch (error) {
-    error.Route = "/uploadBook";
-    error.method = "POST";
-    console.log("error: ", error);
-    return res.status(error.Code).send(error.errorData);
-    // return res.status(400).send("error.errorData");
+    // error.Route = "/uploadBook";
+    // error.method = "POST";
+    // return res.status(error.Code).send(error.errorData);
+    // console.trace("error: ", error);
+    return res.status(400).send({ error });
   }
 });
 
@@ -177,7 +181,7 @@ bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (r
 
 bookRouter.get("/getBook", async function (req, res) {
   const result = await getBookList();
-  console.log("result: ", result);
+  // console.trace("result: ", result);
   res.status(200).send({ status: result.result, data: result.data });
 });
 
@@ -224,46 +228,47 @@ bookRouter.get("/downloadBook", async function (req, res) {
   } else res.send({ error: dbResult.errorMsg });
 });
 
-bookRouter.use("/images", express.static("images"));
-
 bookRouter.get("/getCover", async function (req, res, next) {
   const accessToken = req.query.accessToken;
   const refreshToken = req.query.refreshToken;
   const isbn = req.query.isbn;
-  // try {
-  //   await validateToken(accessToken, refreshToken);
-  // } catch (error) {
-  //   console.log(Object.keys(error));
-  //   console.log(error.errorData);
-  //   return res.status(error.Code).send(error.errorData);
-  // }
-  // if (isbn === undefined || isbn === "") {
-  //   return res.status(400).send({ status: false, error: "buku tidak tersedia" });
-  // }
+  // console.trace("isbn: ", isbn);
+  try {
+    await validateToken(accessToken, refreshToken);
+  } catch (error) {
+    console.log(Object.keys(error));
+    console.log(error.errorData);
+    return res.status(error.Code).send(error.errorData);
+  }
+  if (isbn === undefined || isbn === "") {
+    return res.status(400).send({ status: false, error: "buku tidak tersedia" });
+  }
   return next();
 });
 
 bookRouter.get("/getCover", async function (req, res) {
   const isbn = req.query.isbn;
   const dbResult = await getBookCoverPath(isbn);
-  console.log(dbResult);
-
-  return res.status(400).send({ status: false, error: "buku tidak tersedia" });
-  if (dbResult.result) {
-    return res.send({ error: dbResult.errorMsg });
-  } else res.send({ error: dbResult.errorMsg });
+  // console.trace("path: ", statPath.join(statPath.resolve(), dbResult.path));
+  const finalPath = statPath.join(statPath.resolve(), dbResult.path);
+  return res.status(200).sendFile(finalPath, { allow: true }, (err) => {
+    if (err) {
+      console.trace("error: ", err);
+      return res.status(400).send({ status: false, error: "Cover buku tidak tersedia" });
+    }
+  });
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
-  console.log(req.body);
+  // console.trace(req.body);
   try {
     const bookmark = Object.keys(req.body.bookmarkInformation).length;
     const accessToken = req.body.accessToken;
     const refreshToken = req.body.refreshToken;
     await validateToken(accessToken, refreshToken);
-    console.log(bookmark < 10);
+    // console.log(bookmark < 10);
     if (bookmark > 10) {
-      res.status(404).send({ error: "bang bookmark nya kebanyakan!" });
+      res.status(404).send({ Status: false, error: "bang bookmark nya kebanyakan!" });
     } else next();
   } catch (error) {
     console.trace("error: ", error);
@@ -273,7 +278,7 @@ bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, r
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res) {
   setBookmarkToDb(req.body.userId, req.body.bookmarkInformation);
-  res.status(200).send("bang udah bang :(");
+  res.status(200).send({ status: true, msg: "Berhasil update bookmark!" });
 });
 
 export default bookRouter;

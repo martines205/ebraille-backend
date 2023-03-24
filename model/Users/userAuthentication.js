@@ -114,7 +114,7 @@ async function getUserRefreshToken(nik) {
     // console.trace(`RedisClient => ${nik} =>`, await RedisClient.get(nik));
     return refToken;
   } catch (error) {
-    console.log(error);
+    console.log("error", error);
     return "";
   }
 }
@@ -127,7 +127,7 @@ async function deleteUserRefreshToken(nik) {
     // console.log(`NIK: ${nik} =>`, { statusRefreshToken }, "=> deleted~!");
     return true;
   } catch (error) {
-    console.log(`RefreshToken with NIK "${nik}" unavailable!`);
+    // console.trace(`RefreshToken with NIK "${nik}" unavailable!`);
     return false;
   }
 }

@@ -13,7 +13,7 @@ loginRouter.get("/", async (req, res) => {
   const username = req.query.username;
   const password = req.query.password;
   const result = await userIsValid(username, password);
-  console.log(result);
+  console.trace(result);
   result.result ? res.send({ loginStatus: result.result, msg: result.msg }) : res.send({ loginStatus: result.result, msg: result.msg });
 });
 
@@ -21,11 +21,10 @@ loginRouter.get("/byNIK", async (req, res, next) => {
   try {
     const nik = req.query.nik;
     const result = await checkStatusUserRefreshToken(nik);
-    // console.log("result: ", result);
-    console.trace("result: ", result);
     if (result === false) return next();
     else return res.status(400).send({ loginStatus: false, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
   } catch (error) {
+    console.trace({ Route: "/byNIK", error });
     return res.status(400).send({ loginStatus: false, error: error });
   }
 });
@@ -38,16 +37,16 @@ loginRouter.get("/byNIK", async (req, res) => {
     const iat = Math.floor(Date.now() / 1000);
     jwt.sign({ NIK: nik, role: loginStatus.role, iat }, "prvK", { algorithm: "HS256", expiresIn: "3h" }, async function (err, token) {
       if (err !== null) {
-        console.log("err: ", err);
-        res.send({ loginStatus: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });
+        console.trace({ Route: "/byNIK", error: err });
+        return res.send({ loginStatus: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });
       }
       const refreshToken = await getUserRefreshToken(nik);
       if (refreshToken === "") {
-        res.status(404).send({ loginStatus: false, msg: "server Error" });
+        return res.status(404).send({ loginStatus: false, msg: "server Error" });
       }
-      res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: token, refreshToken, bookmarkList: bookmark });
+      return res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: token, refreshToken, bookmarkList: bookmark });
     });
-  } else res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: "" });
+  } else return res.send({ loginStatus: loginStatus.result, msg: loginStatus.msg, accessToken: "" });
 });
 
 export default loginRouter;

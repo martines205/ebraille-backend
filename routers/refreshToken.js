@@ -22,10 +22,8 @@ TokenRouter.get("/byNik", async (req, res, next) => {
   if (!refreshTokenStatus) return res.send({ Status: false, error: "Refresh Token tidak valid!!", accessToken: "", refreshToken: "" });
 
   jwt.verify(accessToken, "prvK", { algorithm: "HS256" }, (err, decoded) => {
-    console.log("decoded", decoded);
-    console.log("err", err);
-    // console.log("err object", Object.keys(err));
     if (err) {
+      console.trace({ Route: "/byNik", Error: err });
       if (err.expiredAt) {
         next();
       } else if (err.name === "JsonWebTokenError") {
