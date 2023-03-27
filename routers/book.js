@@ -265,6 +265,8 @@ bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, r
     const bookmark = req.body.bookmarkInformation?.length;
     const accessToken = req.body.accessToken;
     const refreshToken = req.body.refreshToken;
+    console.log("refreshToken: ", refreshToken);
+    console.log("accessToken : ", accessToken);
     await validateToken(accessToken, refreshToken);
     // console.log(bookmark < 10);
     if (bookmark > 10) {
