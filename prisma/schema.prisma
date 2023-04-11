@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
@@ -25,8 +26,14 @@ model UserInformation {
   createdAt DateTime @default(now())
 }
 
-model TokenInformation {
+model TokenInformationDesktop {
   nik          String   @id @unique @db.VarChar
+  createdAt    DateTime @default(now())
+  refreshToken String   @db.VarChar
+}
+
+model TokenInformationWebsite {
+  username     String   @id @unique @db.VarChar
   createdAt    DateTime @default(now())
   refreshToken String   @db.VarChar
 }

@@ -23,12 +23,21 @@ CREATE TABLE "UserInformation" (
 );
 
 -- CreateTable
-CREATE TABLE "TokenInformation" (
+CREATE TABLE "TokenInformationDesktop" (
     "nik" VARCHAR NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "refreshToken" VARCHAR NOT NULL,
 
-    CONSTRAINT "TokenInformation_pkey" PRIMARY KEY ("nik")
+    CONSTRAINT "TokenInformationDesktop_pkey" PRIMARY KEY ("nik")
+);
+
+-- CreateTable
+CREATE TABLE "TokenInformationWebsite" (
+    "username" VARCHAR NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "refreshToken" VARCHAR NOT NULL,
+
+    CONSTRAINT "TokenInformationWebsite_pkey" PRIMARY KEY ("username")
 );
 
 -- CreateTable
@@ -53,4 +62,7 @@ CREATE TABLE "BookInformation" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TokenInformation_nik_key" ON "TokenInformation"("nik");
+CREATE UNIQUE INDEX "TokenInformationDesktop_nik_key" ON "TokenInformationDesktop"("nik");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TokenInformationWebsite_username_key" ON "TokenInformationWebsite"("username");

@@ -1,26 +1,34 @@
-import { userIsValid, nikIsValid, getUserRefreshToken, checkStatusUserRefreshToken } from "../model/Users/userAuthentication.js";
+import { nikIsValid, getUserRefreshTokenByNik, checkStatusUserRefreshTokenByNik } from "../model/Users/desktop/userModel.js";
+import { getUserRefreshTokenByUsername, userIsValid } from "../model/Users/website/userModel.js";
 import { getUserBookmarkInformation } from "../model/books/bookModel.js";
 import jwt from "jsonwebtoken";
 import express from "express";
+import { validateLoginRequestField, validateUserNotHaveToken } from "../Middleware/website/loginMiddleware.js";
 const loginRouter = express.Router();
 
-// loginRouter.use((req, res, next) => {
-//   console.log("loginRouter");
-//   next();
-// });
+const SECRET_KEY = process.env.SECRET_KEY;
+const EXPIRED_DATE = process.env.EXPIRED_DATE;
 
-loginRouter.get("/", async (req, res) => {
+// API for Website
+
+loginRouter.get("/", [validateLoginRequestField, validateUserNotHaveToken], async (req, res, next) => {
   const username = req.query.username;
   const password = req.query.password;
-  const result = await userIsValid(username, password);
-  console.trace(result);
-  result.result ? res.send({ loginStatus: result.result, msg: result.msg }) : res.send({ loginStatus: result.result, msg: result.msg });
+  try {
+    const result = await userIsValid(username, password);
+    const refreshToken = await getUserRefreshTokenByUsername(username);
+    return res.status(200).send({ loginStatus: true, msg: result.message, accessToken: result.accessToken, refreshToken });
+  } catch (error) {
+    return res.status(error.responseCode).send({ loginStatus: false, code: error.code, message: error.message });
+  }
 });
+
+// API for Desktop
 
 loginRouter.get("/byNIK", async (req, res, next) => {
   try {
     const nik = req.query.nik;
-    const result = await checkStatusUserRefreshToken(nik);
+    const result = await checkStatusUserRefreshTokenByNik(nik);
     if (result === false) return next();
     else return res.status(400).send({ loginStatus: false, msg: "akun sudah login!", accessToken: "*****", refreshToken: "*****", bookmarkList: ["*"] });
   } catch (error) {
@@ -35,12 +43,12 @@ loginRouter.get("/byNIK", async (req, res) => {
   if (loginStatus.result) {
     const bookmark = await getUserBookmarkInformation(nik);
     const iat = Math.floor(Date.now() / 1000);
-    jwt.sign({ NIK: nik, role: loginStatus.role, iat }, "prvK", { algorithm: "HS256", expiresIn: "3h" }, async function (err, token) {
+    jwt.sign({ NIK: nik, role: loginStatus.role, iat }, SECRET_KEY, { algorithm: "HS256", expiresIn: EXPIRED_DATE }, async function (err, token) {
       if (err !== null) {
         console.trace({ Route: "/byNIK", error: err });
         return res.send({ loginStatus: false, msg: `Sistem Error: ${err}`, accessToken: "", refreshToken: "" });
       }
-      const refreshToken = await getUserRefreshToken(nik);
+      const refreshToken = await getUserRefreshTokenByNik(nik);
       if (refreshToken === "") {
         return res.status(404).send({ loginStatus: false, msg: "server Error" });
       }

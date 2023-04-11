@@ -5,20 +5,20 @@
 /book/getBook GET ok
 /book/addBookmark POST ok
 /book/addBook POST ok
+/book/deleteBook DELETE
 
-/book/deletBook DELETE
 /book/editBook ~
 ...
 */
 
+import express from "express";
+import { moveFile } from "move-file";
+import multer from "multer";
 import statPath from "path";
-
-import express, { response } from "express";
 const bookRouter = express.Router();
 
 const BookDir = "./bookDir";
 const tempUpload = "./uploads";
-import multer from "multer";
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -52,25 +52,103 @@ const upload = multer({
 });
 
 import bodyParser from "body-parser";
+import { unlink } from "fs/promises";
+import { access, constants, mkdir } from "node:fs/promises";
+import { validateBookmarkIsbn, validateBookmarkSchema } from "../Middleware/desktop/booksMiddleWare.js";
+import { validateToken } from "../Middleware/desktop/checkRequestAuth.js";
+import { addBookToDb, bookCredentialIsSave, getBookCoverPath, getBookList, getBookListByTitle, getBookName, getBookPath, setBookmarkToDb } from "../model/books/bookModel.js";
+import { validateTokenWebsite } from "../Middleware/website/checkRequestAuth.js";
 const jsonParser = bodyParser.json();
 const urlencoded = bodyParser.urlencoded({ extended: false });
 const cpUpload = upload.fields([{ name: "bookFile" }, { name: "bookCoverFile" }]);
-import { mkdir, access, constants, unlink } from "node:fs/promises";
-import { moveFile } from "move-file";
-import jwt from "jsonwebtoken";
-import { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getBookList, getBookCoverPath } from "../model/books/bookModel.js";
-import { checkStatusUserRefreshToken } from "../model/Users/userAuthentication.js";
 
 const currentId = Date.now() + "-" + Math.round(Math.random() * 1e9);
 
-bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField], async function (req, res, next) {
-  const isbn = req.body.isbn;
-  const accessToken = req.body.accessToken;
-  const refreshToken = req.body.refreshToken;
+// Desktop
+
+bookRouter.get("/downloadBook", [cpUpload, jsonParser, urlencoded, validateToken], async function (req, res, next) {
+  const isbn = req.query.isbn;
+  if (isbn === undefined || isbn === "") {
+    return res.status(400).send({ status: false, error: "ISBN tidak boleh kosong!" });
+  } else next();
+});
+
+bookRouter.get("/downloadBook", async function (req, res) {
+  const dbResult = await getBookPath(req.query.isbn);
+  if (dbResult.result) {
+    res.download(dbResult.path);
+  } else res.send({ error: dbResult.errorMsg });
+});
+
+bookRouter.post("/setBookmark", [cpUpload, jsonParser, urlencoded, validateToken, validateBookmarkSchema, validateBookmarkIsbn], async function (req, res, next) {
+  const bookmark = req.body.bookmarkInformation?.length;
+  if (bookmark === undefined) return res.status(404).send({ Status: false, error: "Request invalid" });
+  if (bookmark > 10) return res.status(404).send({ Status: false, error: "bang bookmark nya kebanyakan!" });
+  else return next();
+});
+
+bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res) {
+  setBookmarkToDb(req.body.userId, req.body.bookmarkInformation);
+  res.status(200).send({ status: true, msg: "Berhasil update bookmark!" });
+});
+
+bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded, validateToken], async function (error, req, res, next) {
+  if (error) {
+    error.Route = "/getBook";
+    error.method = "GET";
+    console.log("error: ", error);
+    return res.status(error.Code).send(error.errorData);
+  } else return next();
+});
+
+bookRouter.get("/getBook", async function (req, res) {
+  const title = req.query.title;
+  if (title === undefined || title === "") {
+    try {
+      const result = await getBookList();
+      res.status(200).send({ status: result.result, data: result.data });
+    } catch (error) {
+      console.trace("error: ", error);
+      res.status(505).send({ status: false, msg: "Server Error" });
+    }
+  } else {
+    console.log(title);
+    try {
+      const result = await getBookListByTitle(title);
+      res.status(200).send({ status: result.result, data: result.data });
+    } catch (error) {
+      res.status(505).send({ status: false, msg: "Server Error" });
+    }
+  }
+});
+
+bookRouter.get("/getCover", [cpUpload, jsonParser, urlencoded, validateToken], async function (req, res, next) {
+  const isbn = req.query.isbn;
+  if (isbn === undefined || isbn === "") {
+    return res.status(400).send({ status: false, error: "Cover tidak tersedia" });
+  } else return next();
+});
+
+bookRouter.get("/getCover", async function (req, res) {
+  const isbn = req.query.isbn;
   try {
-    const result = await validateToken(accessToken, refreshToken);
-    // console.log("req.files", req.files);
-    // console.log("result: ", result);
+    const dbResult = await getBookCoverPath(isbn);
+    if (dbResult instanceof Error) throw dbResult;
+    const finalPath = statPath.join(statPath.resolve(), dbResult.path);
+    return res.status(200).sendFile(finalPath, { allow: true });
+  } catch (error) {
+    return res.status(error.code ? error.code : 404).send({ status: false, error: error.message });
+  }
+  // console.trace("path: ", statPath.join(statPath.resolve(), dbResult.path));
+});
+
+/* Website */
+
+bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField, validateTokenWebsite], async function (req, res, next) {
+  const isbn = req.body.isbn;
+  // req.files
+  console.log("req.files: ", req.files.bookFile[0]);
+  try {
     if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
@@ -85,7 +163,7 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
     // error.Route = "/uploadBook";
     // error.method = "POST";
     // return res.status(error.Code).send(error.errorData);
-    // console.trace("error: ", error);
+    console.trace("error: ", error);
     return res.status(400).send({ error });
   }
 });
@@ -133,15 +211,15 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
         await unlink(`uploads/${currentId}.${bookCoverFileExt}`);
       }
     } catch (error) {
-      console.log(Object.keys(error));
-      console.log(error);
+      // console.log(Object.keys(error));
+      console.trace("error :", error);
     }
     const credentialError = CredentialIsSave;
     return res.status(404).send(credentialError);
   } else {
     try {
       const name = await getBookName(bookCategory);
-      console.log("name: ", name);
+      console.trace("name: ", name);
 
       if (req.files.bookFile) {
         let bookFileExt = "txt";
@@ -155,134 +233,47 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
       }
       Object.assign(bookObject, { bookFilePath }, { bookCoverFilePath }, { booksCode: name.slice(0, 4) });
       const addBookResult = await addBookToDb(bookObject);
-      console.log(addBookResult);
+      // console.trace(addBookResult);
       return res.status(200).send({ status: addBookResult.Status, message: addBookResult.msg, warn: addBookResult.err });
     } catch (error) {
-      console.log(Object.keys(error));
-      console.log(error);
+      console.trace(Object.keys(error));
+      console.trace(error);
       return res.status(500).send({ status: false, errorType: "server error", warn: " Error status => DANGER!" });
     }
   }
 });
 
-bookRouter.get("/getBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
-  const accessToken = req.query.accessToken;
-  const refreshToken = req.query.refreshToken;
+bookRouter.get("/website/getBook", [cpUpload, jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
   try {
-    await validateToken(accessToken, refreshToken);
-    next();
-  } catch (error) {
-    error.Route = "/getBook";
-    error.method = "GET";
-    console.log("error: ", error);
-    return res.status(error.Code).send(error.errorData);
-  }
-});
-
-bookRouter.get("/getBook", async function (req, res) {
-  const result = await getBookList();
-  // console.trace("result: ", result);
-  res.status(200).send({ status: result.result, data: result.data });
-});
-
-bookRouter.get("/downloadBook", async function (req, res, next) {
-  const accessToken = req.query.accessToken;
-  const refreshToken = req.query.refreshToken;
-  const isbn = req.query.isbn;
-  // const responseTemplate = { Status: undefined };
-  try {
-    await validateToken(accessToken, refreshToken);
-  } catch (error) {
-    console.log(Object.keys(error));
-    console.log(error.errorData);
-    return res.status(error.Code).send(error.errorData);
-  }
-  if (isbn === undefined || isbn === "") {
-    return res.status(400).send({ status: false, error: "isbn gak ada" });
-  }
-  return next();
-});
-
-bookRouter.get("/downloadBook", async function (req, res, next) {
-  const accessToken = req.query.accessToken;
-  const refreshToken = req.query.refreshToken;
-  const isbn = req.query.isbn;
-  // const responseTemplate = { Status: undefined };
-  try {
-    await validateToken(accessToken, refreshToken);
-  } catch (error) {
-    console.log(Object.keys(error));
-    console.log(error.errorData);
-    return res.status(error.Code).send(error.errorData);
-  }
-  if (isbn === undefined || isbn === "") {
-    return res.status(400).send({ status: false, error: "Buku tidak tersedia!" });
-  }
-  return next();
-});
-
-bookRouter.get("/downloadBook", async function (req, res) {
-  const dbResult = await getBookPath(req.query.isbn);
-  if (dbResult.result) {
-    res.download(dbResult.path);
-  } else res.send({ error: dbResult.errorMsg });
-});
-
-bookRouter.get("/getCover", async function (req, res, next) {
-  const accessToken = req.query.accessToken;
-  const refreshToken = req.query.refreshToken;
-  const isbn = req.query.isbn;
-  // console.trace("isbn: ", isbn);
-  try {
-    await validateToken(accessToken, refreshToken);
-  } catch (error) {
-    console.log(Object.keys(error));
-    console.log(error.errorData);
-    return res.status(error.Code).send(error.errorData);
-  }
-  if (isbn === undefined || isbn === "") {
-    return res.status(400).send({ status: false, error: "buku tidak tersedia" });
-  }
-  return next();
-});
-
-bookRouter.get("/getCover", async function (req, res) {
-  const isbn = req.query.isbn;
-  const dbResult = await getBookCoverPath(isbn);
-  // console.trace("path: ", statPath.join(statPath.resolve(), dbResult.path));
-  const finalPath = statPath.join(statPath.resolve(), dbResult.path);
-  return res.status(200).sendFile(finalPath, { allow: true }, (err) => {
-    if (err) {
-      console.trace("error: ", err);
-      return res.status(400).send({ status: false, error: "Cover buku tidak tersedia" });
-    }
-  });
-});
-
-bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res, next) {
-  console.trace("req.body.bookmarkInformation: ", req.body.bookmarkInformation);
-  try {
-    const bookmark = req.body.bookmarkInformation?.length;
-    const accessToken = req.body.accessToken;
-    const refreshToken = req.body.refreshToken;
-    console.log("refreshToken: ", refreshToken);
-    console.log("accessToken : ", accessToken);
-    await validateToken(accessToken, refreshToken);
-    // console.log(bookmark < 10);
-    if (bookmark > 10) {
-      res.status(404).send({ Status: false, error: "bang bookmark nya kebanyakan!" });
-    } else next();
+    const result = await getBookList();
+    res.status(200).send({ status: result.result, data: result.data });
   } catch (error) {
     console.trace("error: ", error);
-    res.status(404).send({ Status: false, error: error });
+    res.status(505).send({ status: false, msg: "Server Error" });
   }
 });
 
-bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res) {
-  setBookmarkToDb(req.body.userId, req.body.bookmarkInformation);
-  res.status(200).send({ status: true, msg: "Berhasil update bookmark!" });
+bookRouter.get("/website/getCover", [cpUpload, jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
+  const isbn = req.query.isbn;
+  if (isbn === undefined || isbn === "") {
+    return res.status(400).send({ status: false, error: "Cover tidak tersedia" });
+  } else return next();
 });
 
+bookRouter.get("/website/getCover", async function (req, res) {
+  const isbn = req.query.isbn;
+  try {
+    const dbResult = await getBookCoverPath(isbn);
+    if (dbResult instanceof Error) throw dbResult;
+    const finalPath = statPath.join(statPath.resolve(), dbResult.path);
+    return res.status(200).sendFile(finalPath, { allow: true });
+  } catch (error) {
+    return res.status(error.code ? error.code : 404).send({ status: false, error: error.message });
+  }
+  // console.trace("path: ", statPath.join(statPath.resolve(), dbResult.path));
+});
+
+////////////////////////////////////////
 export default bookRouter;
 
 async function checkDirIsExistIfNotCreate(path, category) {
@@ -290,10 +281,10 @@ async function checkDirIsExistIfNotCreate(path, category) {
   try {
     await access(path + `/${category.toUpperCase()}/BookFile/`, constants.R_OK | constants.W_OK);
     await access(path + `/${category.toUpperCase()}/BookCoverFile/`, constants.R_OK | constants.W_OK);
-    console.log("\nFolder exist!");
+    // console.trace("\nFolder exist!");
     return true;
   } catch {
-    console.log("\nFolder do not exist! , try to create folder!");
+    console.trace("\nFolder do not exist! , try to create folder!");
     try {
       const createBookFileDir = await mkdir(path + `/${category.toUpperCase()}/BookFile/`, {
         recursive: true,
@@ -301,10 +292,10 @@ async function checkDirIsExistIfNotCreate(path, category) {
       const createBookCoverFileDir = await mkdir(path + `/${category.toUpperCase()}/BookCoverFile/`, {
         recursive: true,
       });
-      console.log("success to to create folder!");
+      console.trace("success to to create folder!");
       return true;
     } catch (err) {
-      console.log("Failed to to create folder!");
+      console.trace("Failed to to create folder!");
       return false;
     }
   }
@@ -325,22 +316,6 @@ async function validateRequestField(req, res, next) {
   // console.log("emptyField: ", emptyField);
   if (emptyField.length === 0) return next();
   return res.status(400).send({ Status: false, errorMsg: `Field ${emptyField.toString()} tidak boleh kosong!` });
-}
-
-async function validateToken(accessToken, refreshToken) {
-  return await new Promise(function (resolve, reject) {
-    jwt.verify(accessToken, "prvK", { algorithm: "HS256" }, async (err, decoded) => {
-      if (err) {
-        reject({ Code: 400, errorData: { Status: false, error: `${err.message === "jwt malformed" ? "Token invalid" : err.message}`, [`${err.expiredAt ? "expiredAt" : ""}`]: err.expiredAt } });
-      } else {
-        const result = await checkStatusUserRefreshToken(decoded.NIK, refreshToken);
-        if (!result) {
-          reject({ Code: 403, errorData: { Status: false, error: "Silahkan login terlebih dahulu!" } });
-        }
-        resolve({ Code: 200, errorData: { Status: true, error: "" } });
-      }
-    });
-  });
 }
 
 async function removeFileIfError(Cover, File) {}

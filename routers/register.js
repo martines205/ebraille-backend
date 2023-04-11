@@ -1,4 +1,4 @@
-import { addNewUser } from "../model/Users/userAuthentication.js";
+import { addNewUser } from "../model/Users/website/userModel.js";
 import bodyParser from "body-parser";
 import express from "express";
 import { PrismaClient } from "@prisma/client";
@@ -18,7 +18,7 @@ registerRouter.post("/", [urlencoded, jsonParser], async (req, res) => {
   const password = req.body.password;
   const result = await addNewUser(firstName, lastName, gender, nik, username, email, password);
 
-  console.log("result.Status: ", result.Status);
+  // console.trace("result.Status: ", result.Status);
   result.Status
     ? res.send({ msg: result.msg })
     : res.send({

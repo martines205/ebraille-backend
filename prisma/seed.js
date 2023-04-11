@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import Bcrypt from "bcrypt";
-import { getRandomArbitrary } from "../model/Users/userAuthentication.js";
+import { getRandomArbitrary } from "../model/Users/website/userModel.js";
 const prisma = new PrismaClient();
 async function main() {
   const Martin = await prisma.userInformation.upsert({

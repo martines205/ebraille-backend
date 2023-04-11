@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function bookCredentialIsSave(credential) {
   try {
     const bookCredential = [credential.titles, credential.isbn];
-    console.log("bookCredential: ", bookCredential);
+    // console.trace("bookCredential: ", bookCredential);
     const result = await prisma.BookInformation.findFirstOrThrow({
       where: {
         OR: [{ titles: credential.titles }, { isbn: credential.isbn }],
@@ -25,14 +25,11 @@ async function bookCredentialIsSave(credential) {
         .toString()
         .split(",")
         .filter((v) => v !== "");
-
       const dataList = `data ${
         dataIsExistRaw.length === 1
           ? dataIsExistRaw.at(0) + " telah terdaftar pada sistem !"
           : dataIsExistRaw.slice(0, dataIsExistRaw.length - 1) + " dan " + dataIsExistRaw.at(-1) + " telah terdaftar pada sistem !"
       }`;
-
-      console.log(dataList);
       const errorInCredential = {};
       errorInCredential.status = false;
       errorInCredential.errorType = dataList;
@@ -42,9 +39,9 @@ async function bookCredentialIsSave(credential) {
       return errorInCredential;
     }
   } catch (error) {
-    console.log(Object.keys(error));
+    // console.log(Object.keys(error));
+    // console.log(error.name);
     error.errorType = "";
-    console.log(error.name);
     return { status: true, errorType: "", warn: [""] };
   }
 }
@@ -82,7 +79,7 @@ async function addBookToDb(bookObject) {
         await prisma.$disconnect();
       })
       .catch(async (e) => {
-        console.error(e);
+        console.trace(e);
         await prisma.$disconnect();
         process.exit(1);
       });
@@ -145,7 +142,36 @@ async function getBookList() {
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
     return { result: true, data: result };
   } catch (error) {
-    console.trace("error: ", error);
+    console.trace("error:", error.message);
+    return { result: true, data: {} };
+  }
+}
+
+export async function getBookListByTitle(title) {
+  try {
+    let preProcessTitle;
+    if (title.split(" ").length === 2) {
+      preProcessTitle = title.split(" ").at(0);
+    } else preProcessTitle = title.split(" ").join(" & ");
+    const result = await prisma.bookInformation.findMany({
+      select: {
+        isbn: true,
+        availability: true,
+        titles: true,
+        languages: true,
+        authors: true,
+        year: true,
+        categories: true,
+        editions: true,
+        titles: true,
+        id: false,
+      },
+      where: { titles: { search: preProcessTitle } },
+    });
+    if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    return { result: true, data: result };
+  } catch (error) {
+    console.trace("error: ", error.message);
     return { result: true, data: {} };
   }
 }
@@ -153,7 +179,8 @@ async function getBookList() {
 async function getUserBookmarkInformation(nik) {
   try {
     const result = await prisma.bookmark.findFirst({ where: { userId: nik } });
-    return { addBookStatus: true, msg: result.bookmarkInformation };
+    if (result === null) return { msg: [] };
+    return { msg: result.bookmarkInformation };
   } catch (error) {
     console.trace("error: ", error);
     return { addBookStatus: false, msg: error };
@@ -167,13 +194,36 @@ async function getBookCoverPath(isbn) {
       where: { isbn: isbnTarget },
     });
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    else if (result.length === 0) return new Error("Cover tidak tersedia, silahkan cek kembali code ISBN yang diberikan!");
     else {
       return { result: true, path: result[0].bookCoverFilePath, errorMsg: "" };
     }
   } catch (error) {
     console.trace("error: ", error);
-    return { result: false, path: "NaN", errorMsg: "Cover tidak tersedia, silahkan cek kembali code ISBN yang diberikan!" };
+    error.code = 500;
+    error.message = "server Error";
+    return error;
   }
 }
 
-export { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getUserBookmarkInformation, getBookList, getBookCoverPath };
+async function getBookIsbnList() {
+  try {
+    const listFieldIsbn = await prisma.bookInformation.findMany({
+      select: {
+        isbn: true,
+        titles: true,
+      },
+    });
+    if (listFieldIsbn instanceof PrismaClientKnownRequestError) throw new Error(result);
+    const IsbnList = {};
+    listFieldIsbn.map((object) => {
+      IsbnList[`${object.isbn}`] = object.titles;
+    });
+    return IsbnList;
+  } catch (error) {
+    console.trace("error: ", error);
+    return new Error("Server Error!");
+  }
+}
+
+export { bookCredentialIsSave, getBookName, addBookToDb, getBookPath, setBookmarkToDb, getUserBookmarkInformation, getBookList, getBookCoverPath, getBookIsbnList };

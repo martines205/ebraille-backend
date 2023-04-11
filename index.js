@@ -1,21 +1,24 @@
 import express from "express";
-
+import cors from "cors";
+import { createClient } from "redis";
 import bookRouter from "./routers/book.js";
 import loginRouter from "./routers/login.js";
-import registerRouter from "./routers/register.js";
 import logoutRouter from "./routers/logout.js";
 import TokenRouter from "./routers/refreshToken.js";
-import { createClient } from "redis";
+import registerRouter from "./routers/register.js";
+import RoleRouter from "./routers/role.js";
 const RedisClient = createClient();
 
 const app = express();
-const port = 3001;
+app.use(cors());
 
+const port = 3001;
 app.use("/login", loginRouter);
 app.use("/logout", logoutRouter);
 app.use("/token", TokenRouter);
 app.use("/book", bookRouter);
 app.use("/register", registerRouter);
+app.use("/role", RoleRouter);
 const server = app.listen(port, async () => {
   console.log(`Example app listening on port ${port}`);
   RedisClient.on("error", (err) => console.log("Redis Client Error", err));
@@ -29,10 +32,6 @@ const server = app.listen(port, async () => {
   const value = await RedisClient.get("key");
   console.log(value);
 });
-
-// setInterval(() => server.getConnections((err, connections) => console.log(`${connections} connections currently open`)), 1000);
-
-// // app.on("")
 
 export { app, RedisClient };
 
