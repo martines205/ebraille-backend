@@ -1,14 +1,16 @@
 import Prisma from "@prisma/client";
+import { unlink } from "fs/promises";
+
 const { PrismaClient, PrismaClientKnownRequestError } = Prisma;
 const prisma = new PrismaClient();
 
 async function bookCredentialIsSave(credential) {
   try {
-    const bookCredential = [credential.titles, credential.isbn];
+    const bookCredential = [credential.TITLE, credential.ISBN];
     // console.trace("bookCredential: ", bookCredential);
     const result = await prisma.BookInformation.findFirstOrThrow({
       where: {
-        OR: [{ titles: credential.titles }, { isbn: credential.isbn }],
+        OR: [{ titles: credential.TITLE }, { isbn: credential.ISBN }],
       },
     });
     if (result instanceof PrismaClientKnownRequestError) {
@@ -73,7 +75,21 @@ async function addBookToDb(bookObject) {
   try {
     await prisma.bookInformation
       .create({
-        data: bookObject,
+        data: {
+          authors: bookObject.AUTHOR,
+          categories: bookObject.CATEGORY,
+          editions: bookObject.EDITION,
+          titles: bookObject.TITLE,
+          publishers: bookObject.PUBLISHER,
+          isbn: bookObject.ISBN,
+          year: bookObject.YEAR,
+          languages: bookObject.LANGUAGE,
+          booksCode: bookObject.booksCode,
+          bookCoverFilePath: bookObject.bookCoverFilePath,
+          bookFilePath: bookObject.bookFilePath,
+          availability: bookObject.AVAILABILITY,
+          uploader: bookObject.UPLOADER,
+        },
       })
       .then(async () => {
         await prisma.$disconnect();
@@ -89,6 +105,29 @@ async function addBookToDb(bookObject) {
       Status: false,
       msg: "Penambahan buku gagal dengan error",
       err: error,
+    };
+  }
+}
+
+export async function removeBookFromDB(ISBN) {
+  try {
+    const queryResult = await prisma.bookInformation.findFirst({ where: { isbn: ISBN } });
+    if (queryResult === null) throw new Error("Book not found!");
+    const { id, titles, bookCoverFilePath, bookFilePath } = queryResult;
+    console.log("id: ", id);
+    const result = await prisma.bookInformation.delete({ where: { id } });
+    console.log("result: ", result);
+    await prisma.$disconnect();
+    await unlink(bookCoverFilePath);
+    await unlink(bookFilePath);
+    return { Status: true, msg: `Buku dengan judul "${titles}" berhasil di hapus!` };
+  } catch (error) {
+    console.trace("error:", error.message);
+    await prisma.$disconnect();
+    return {
+      Status: false,
+      msg: "Penghapusan buku gagal!",
+      err: error.message,
     };
   }
 }

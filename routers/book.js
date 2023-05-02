@@ -43,10 +43,12 @@ const upload = multer({
         await mkdir(tempUpload, {
           recursive: true,
         });
-      } catch (err) {}
+      } catch (err) {
+        cb(null, false);
+      }
     }
-    const isbn = req.body.isbn;
-    if (isbn === "" || isbn === undefined) return cb(null, false);
+    const ISBN = req.body.ISBN;
+    if (ISBN === "" || ISBN === undefined) return cb(null, false);
     return cb(null, true);
   },
 });
@@ -56,7 +58,7 @@ import { unlink } from "fs/promises";
 import { access, constants, mkdir } from "node:fs/promises";
 import { validateBookmarkIsbn, validateBookmarkSchema } from "../Middleware/desktop/booksMiddleWare.js";
 import { validateToken } from "../Middleware/desktop/checkRequestAuth.js";
-import { addBookToDb, bookCredentialIsSave, getBookCoverPath, getBookList, getBookListByTitle, getBookName, getBookPath, setBookmarkToDb } from "../model/books/bookModel.js";
+import { addBookToDb, bookCredentialIsSave, getBookCoverPath, getBookList, getBookListByTitle, getBookName, getBookPath, removeBookFromDB, setBookmarkToDb } from "../model/books/bookModel.js";
 import { validateTokenWebsite } from "../Middleware/website/checkRequestAuth.js";
 const jsonParser = bodyParser.json();
 const urlencoded = bodyParser.urlencoded({ extended: false });
@@ -144,12 +146,13 @@ bookRouter.get("/getCover", async function (req, res) {
 
 /* Website */
 
-bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField, validateTokenWebsite], async function (req, res, next) {
-  const isbn = req.body.isbn;
-  // req.files
-  console.log("req.files: ", req.files.bookFile[0]);
+// bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField, validateTokenWebsite], async function (req, res, next) {
+bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
+  console.log("req: ", req.files);
+  console.log("req: ", req.body);
+  const isbn = req.body.ISBN;
+  if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
   try {
-    if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
     if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
       unlink(req.files.bookFile[0].path);
       unlink(req.files.bookCoverFile[0].path);
@@ -164,13 +167,13 @@ bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateReques
     // error.method = "POST";
     // return res.status(error.Code).send(error.errorData);
     console.trace("error: ", error);
-    return res.status(400).send({ error });
+    return res.status(500).send({ Status: false, errorMsg: `Server Error!` });
   }
 });
 
 bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, res) {
   let bookObject = structuredClone(req.body);
-  const bookCategory = req.body.categories.toUpperCase();
+  const bookCategory = req.body.CATEGORY.toUpperCase();
   let bookFilePath = "";
   let bookCoverFilePath = "";
   delete bookObject.accessToken;
@@ -240,6 +243,20 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
       console.trace(error);
       return res.status(500).send({ status: false, errorType: "server error", warn: " Error status => DANGER!" });
     }
+  }
+});
+
+// bookRouter.delete("/website/deleteBook", [jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
+bookRouter.delete("/deleteBook", [jsonParser, urlencoded], async function (req, res, next) {
+  const { ISBN } = req.query;
+  try {
+    const result = await removeBookFromDB(ISBN);
+    if (!result.Status) throw result;
+    console.log("result: ", result.Status);
+    return res.status(200).send({ status: true, message: result.msg });
+  } catch (error) {
+    // console.trace("error: ", error);
+    return res.status(400).send({ status: error.Status, message: error.msg, error: error.err });
   }
 });
 
