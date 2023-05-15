@@ -13,7 +13,7 @@ CREATE TABLE "UserInformation" (
     "firstName" VARCHAR NOT NULL,
     "lastName" VARCHAR NOT NULL,
     "nik" VARCHAR NOT NULL,
-    "gender" SMALLINT NOT NULL,
+    "gender" CHAR(1) NOT NULL,
     "email" VARCHAR NOT NULL,
     "username" VARCHAR NOT NULL,
     "password" VARCHAR NOT NULL,
@@ -66,3 +66,6 @@ CREATE UNIQUE INDEX "TokenInformationDesktop_nik_key" ON "TokenInformationDeskto
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TokenInformationWebsite_username_key" ON "TokenInformationWebsite"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BookInformation_isbn_key" ON "BookInformation"("isbn");

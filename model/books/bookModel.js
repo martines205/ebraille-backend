@@ -77,18 +77,18 @@ async function addBookToDb(bookObject) {
       .create({
         data: {
           authors: bookObject.AUTHOR,
-          categories: bookObject.CATEGORY,
           editions: bookObject.EDITION,
           titles: bookObject.TITLE,
           publishers: bookObject.PUBLISHER,
           isbn: bookObject.ISBN,
           year: bookObject.YEAR,
-          languages: bookObject.LANGUAGE,
           booksCode: bookObject.booksCode,
           bookCoverFilePath: bookObject.bookCoverFilePath,
           bookFilePath: bookObject.bookFilePath,
           availability: bookObject.AVAILABILITY,
           uploader: bookObject.UPLOADER,
+          categories: bookObject.CATEGORY.toUpperCase(),
+          languages: bookObject.LANGUAGE.toUpperCase().slice(0, 3),
         },
       })
       .then(async () => {
@@ -107,6 +107,40 @@ async function addBookToDb(bookObject) {
       err: error,
     };
   }
+}
+
+export async function editBookInformationOnDB(bookObject) {
+  const { ISBN } = bookObject;
+  console.log("isbn: ", ISBN);
+  console.log("bookObject: ", bookObject);
+  try {
+    const { bookFilePath, bookCoverFilePath, id } = await prisma.bookInformation.findFirstOrThrow({ where: { isbn: ISBN } });
+    await prisma.bookInformation.update({
+      where: { id },
+      data: {
+        titles: bookObject.TITLE,
+        authors: bookObject.AUTHOR,
+        editions: bookObject.EDITION,
+        isbn: bookObject.ISBN,
+        year: bookObject.YEAR,
+        availability: bookObject.AVAILABILITY,
+        publishers: bookObject.PUBLISHER,
+        categories: bookObject.CATEGORY.toUpperCase(),
+        languages: bookObject.LANGUAGE.toUpperCase().slice(0, 3),
+      },
+    });
+    await prisma.$disconnect();
+    console.log("bookFilePath, bookCoverFilePath: ", bookFilePath, bookCoverFilePath);
+    return { bookFilePath, bookCoverFilePath };
+  } catch (error) {
+    console.trace("error: ", error);
+    return new Error({
+      Status: false,
+      msg: "Server error",
+      err: error.message,
+    });
+  }
+  // const queryResult = await prisma.bookInformation.findFirst({ where: { isbn: ISBN } });
 }
 
 export async function removeBookFromDB(ISBN) {
@@ -133,17 +167,41 @@ export async function removeBookFromDB(ISBN) {
 }
 
 async function getBookPath(isbn) {
-  // const bookCode = "BO" + category.slice(0, 2).toUpperCase();
   try {
     const result = await prisma.bookInformation.findMany({
-      where: { OR: [{ isbn }] },
+      where: { isbn: { equals: isbn } },
     });
+    // console.log("result: ", result);
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    if (parseInt(result[0].availability) === 0) throw new Error("0");
     else {
-      // console.log(result);
+      const newAvailability = (parseInt(result[0].availability) - 1).toString();
+      // console.log("newAvailability: ", newAvailability);
+      await prisma.bookInformation.update({ where: { isbn }, data: { availability: newAvailability } });
       return { result: true, path: result[0].bookFilePath, errorMsg: "" };
     }
   } catch (error) {
+    console.trace("error: ", error);
+    if (error.message === "0") return { result: false, path: "NaN", errorMsg: "Maaf, Ketersediaan Buku sudah Habis, mohon coba lagi setelah beberapa saat!" };
+    return { result: false, path: "NaN", errorMsg: "Buku tidak tersedia, silahkan cek kembali code ISBN yang diberikan!" };
+  }
+}
+
+export async function updateAvailability(isbn) {
+  try {
+    const result = await prisma.bookInformation.findMany({
+      where: { isbn: { equals: isbn } },
+    });
+    if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    else {
+      if (parseInt(result[0].availability) >= parseInt(result[0].maxBook)) return { result: false, path: "NaN", errorMsg: "Ketersedian buku sudah Maksimal" };
+      const newAvailability = (parseInt(result[0].availability) + 1).toString();
+      console.log("newAvailability: ", newAvailability);
+      await prisma.bookInformation.update({ where: { isbn }, data: { availability: newAvailability } });
+      return { result: true, message: "Update ketersediaan buku berhasil!" };
+    }
+  } catch (error) {
+    console.log("error: ", error);
     return { result: false, path: "NaN", errorMsg: "Buku tidak tersedia, silahkan cek kembali code ISBN yang diberikan!" };
   }
 }
@@ -175,6 +233,7 @@ async function getBookList() {
         categories: true,
         editions: true,
         titles: true,
+        publishers: true,
         id: false,
       },
     });

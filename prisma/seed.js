@@ -10,7 +10,7 @@ async function main() {
       firstName: "Martin",
       lastName: "Butar Butar",
       role: "ADMIN",
-      gender: 0,
+      gender: "M",
       nik: "2301897592",
       username: "martines205",
       email: "martinesbutar205@gmail.com",

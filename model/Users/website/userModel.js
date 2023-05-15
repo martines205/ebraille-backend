@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 const { JsonWebTokenError, TokenExpiredError } = jwt;
 import { RedisClient } from "../../../index.js";
+import { error } from "console";
 
 const { PrismaClient, PrismaClientKnownRequestError } = Prisma;
 const prisma = new PrismaClient();
@@ -32,7 +33,7 @@ async function userIsValid(username, password) {
 
 async function addNewUser(firstName, lastName, gender, nik, username, email, password) {
   const checkResult = await UniqueCredentialCheck(nik, username, email);
-  if (checkResult.isCredentialSafeToAdd === false) return { adduserStatus: false, msg: checkResult.warn };
+  if (checkResult.isCredentialSafeToAdd === false) return { Status: 400, msg: checkResult.warn };
   else {
     try {
       const hashedPassword = await Bcrypt.hash(password, getRandomArbitrary(9, 15)).then((res) => res);
@@ -46,11 +47,11 @@ async function addNewUser(firstName, lastName, gender, nik, username, email, pas
           await prisma.$disconnect();
           process.exit(1);
         });
-      return { Status: true, msg: "Registarasi berhasil" };
+      return { Status: 200, msg: "Registarasi berhasil" };
     } catch (error) {
       console.trace("error: ", error.message);
       return {
-        Status: false,
+        Status: 400,
         msg: "Registarasi gagal dengan error",
         err: error,
       };
@@ -68,6 +69,22 @@ async function getRoleWithUsername(username) {
       });
       if (result === null) return reject({ responseCode: 400, message: "username invalid" });
       return resolve({ role: result.role });
+    } catch (error) {
+      console.trace("error: ", error);
+      return reject({ responseCode: 500, msg: "Server error" });
+    }
+  });
+}
+
+export async function getAllUserRole(username) {
+  return await new Promise(async (resolve, reject) => {
+    try {
+      const result = await prisma.userInformation.findMany({
+        where: { NOT: { role: { equals: "ADMIN" } } },
+        select: { username: true, role: true },
+      });
+      if (result === null) return reject({ responseCode: 400, message: "username not available!" });
+      return resolve({ result: result });
     } catch (error) {
       console.trace("error: ", error);
       return reject({ responseCode: 500, msg: "Server error" });
@@ -193,6 +210,71 @@ async function getUserAccessTokenByUsername(username, role) {
       return reject({ responseCode: 500 });
     }
   });
+}
+
+export async function ValidateUserInformation(Username, Email, NIK) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const result = await prisma.userInformation.findFirst({
+        where: { username: { equals: Username }, nik: { equals: NIK }, email: { equals: Email } },
+      });
+      if (result === null) return reject({ responseCode: 400, code: 1, message: "User information is invalid!" });
+      const resetPasswordRequestID = Math.round(Math.random() * 1e9) + Date.now() - Math.round(Math.random() * 1e9);
+      const cacheLabel = `resetPasswordRequestID_${Username}`;
+      RedisClient.set(cacheLabel, resetPasswordRequestID, { EX: 60 * 3 });
+      return resolve({ message: "User information is valid!", resetPasswordRequestID });
+    } catch (error) {
+      if (error.responseCode === 400) return reject(error);
+      console.trace("error: ", error);
+      return reject({ responseCode: 500, code: 4, message: "Server error!" });
+    }
+  });
+}
+
+export async function setNewPassword(Username, newPassword) {
+  return new Promise(async (resolve, reject) => {
+    const hashedPassword = await Bcrypt.hash(newPassword, getRandomArbitrary(9, 15)).then((res) => res);
+    try {
+      const { id } = await prisma.userInformation.findFirst({ where: { username: { equals: Username } }, select: { id: true } });
+      await prisma.userInformation.update({
+        where: { id },
+        data: { password: hashedPassword },
+      });
+      return resolve({ message: "Update password berhasil!" });
+    } catch (error) {
+      if (error.responseCode === 400) return reject(error);
+      console.trace("error: ", error);
+      return reject({ responseCode: 500, code: 4, message: "Server error!" });
+    }
+  });
+}
+
+export async function setNewRole(userListToUpdate) {
+  const userNameList = Object.keys(userListToUpdate);
+
+  const promises = userNameList.map(
+    async (username) =>
+      new Promise((resolve, reject) =>
+        prisma.userInformation
+          .updateMany({
+            where: { username },
+            data: { role: userListToUpdate[`${username}`].newRole },
+          })
+          .then((res) => {
+            if (res.count === 1) return resolve({ success: `role ${username} berhasil diganti` });
+            else return resolve({ error: `username ${username} tidak dikenal` });
+          })
+          .catch((error) => reject({ error: error }))
+      )
+  );
+  try {
+    const result = await Promise.all(promises).then((values) => values);
+    // console.trace("result: ", result);
+    return { status: 200, result };
+  } catch (error) {
+    // console.log("error: ", error);
+    return { status: 500, message: "server Error" };
+  }
 }
 
 export {

@@ -9,21 +9,18 @@ const jsonParser = bodyParser.json();
 const urlencoded = bodyParser.urlencoded({ extended: false });
 
 registerRouter.post("/", [urlencoded, jsonParser], async (req, res) => {
-  const firstName = req.body.firstName;
-  const lastName = req.body.lastName;
-  const gender = parseInt(req.body.gender);
-  const nik = req.body.nik;
-  const username = req.body.username;
-  const email = req.body.email;
-  const password = req.body.password;
-  const result = await addNewUser(firstName, lastName, gender, nik, username, email, password);
+  console.log("req.body: ", req.body);
+  const { FirstName, LastName, NIK, Gender, Username, Email, Password } = req.body;
+  const result = await addNewUser(FirstName, LastName, Gender, NIK, Username, Email, Password);
+  console.log("result: ", result);
+  // return res.status(200).send({ msg: "testing" });
 
   // console.trace("result.Status: ", result.Status);
-  result.Status
-    ? res.send({ msg: result.msg })
-    : res.send({
+  return result.Status === 200
+    ? res.status(result.Status).send({ msg: result.msg })
+    : res.status(result.Status).send({
         msg: `Resistrasi gagal, data ${result.msg.toString()} sudah terdaftar`,
-        error: result.err ? result.err : "",
+        error: { NIK: result.msg[0], Username: result.msg[1], Email: result.msg[2] },
       });
 });
 

@@ -6,7 +6,7 @@ import { RefreshTokenIsValid } from "../../model/Users/website/userModel.js";
 const SECRET_KEY = process.env.SECRET_KEY;
 
 export async function validateTokenWebsite(req, res, next) {
-  console.log("JSON.stringify(req.body): ", JSON.stringify(req.body));
+  // console.log("JSON.stringify(req.body): ", JSON.stringify(req.body));
   const requestBody = JSON.stringify(req.body) === undefined ? {} : JSON.parse(JSON.stringify(req.body));
   const accessToken = isEmpty(requestBody) ? req.query.accessToken : requestBody.accessToken;
   const refreshToken = isEmpty(requestBody) ? req.query.refreshToken : requestBody.refreshToken;

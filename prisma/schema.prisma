@@ -19,7 +19,7 @@ model UserInformation {
   firstName String   @db.VarChar
   lastName  String   @db.VarChar
   nik       String   @db.VarChar
-  gender    Int      @db.SmallInt
+  gender    String   @db.Char(1)
   email     String   @db.VarChar
   username  String   @db.VarChar
   password  String   @db.VarChar
@@ -50,7 +50,7 @@ model BookInformation {
   bookCoverFilePath String? @db.VarChar
   bookFilePath      String? @db.VarChar
   authors           String  @db.VarChar
-  isbn              String  @db.VarChar
+  isbn              String  @db.VarChar @unique
   categories        String  @db.VarChar
   editions          String  @db.VarChar
   uploader          String  @db.VarChar

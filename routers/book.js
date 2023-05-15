@@ -48,7 +48,7 @@ const upload = multer({
       }
     }
     const ISBN = req.body.ISBN;
-    if (ISBN === "" || ISBN === undefined) return cb(null, false);
+    if (ISBN === "" || ISBN === `""` || ISBN === undefined) return cb(null, false);
     return cb(null, true);
   },
 });
@@ -58,7 +58,19 @@ import { unlink } from "fs/promises";
 import { access, constants, mkdir } from "node:fs/promises";
 import { validateBookmarkIsbn, validateBookmarkSchema } from "../Middleware/desktop/booksMiddleWare.js";
 import { validateToken } from "../Middleware/desktop/checkRequestAuth.js";
-import { addBookToDb, bookCredentialIsSave, getBookCoverPath, getBookList, getBookListByTitle, getBookName, getBookPath, removeBookFromDB, setBookmarkToDb } from "../model/books/bookModel.js";
+import {
+  addBookToDb,
+  bookCredentialIsSave,
+  editBookInformationOnDB,
+  getBookCoverPath,
+  getBookList,
+  getBookListByTitle,
+  getBookName,
+  getBookPath,
+  removeBookFromDB,
+  updateAvailability,
+  setBookmarkToDb,
+} from "../model/books/bookModel.js";
 import { validateTokenWebsite } from "../Middleware/website/checkRequestAuth.js";
 const jsonParser = bodyParser.json();
 const urlencoded = bodyParser.urlencoded({ extended: false });
@@ -80,6 +92,13 @@ bookRouter.get("/downloadBook", async function (req, res) {
   if (dbResult.result) {
     res.download(dbResult.path);
   } else res.send({ error: dbResult.errorMsg });
+});
+
+bookRouter.patch("/returnBook", [jsonParser, urlencoded, validateToken], async function (req, res, next) {
+  const { isbn } = req.query;
+  const { result, message, errorMsg } = await updateAvailability(isbn);
+  if (result) return res.status(200).send({ status: result, message });
+  else return res.status(400).send({ status: result, errorMsg });
 });
 
 bookRouter.post("/setBookmark", [cpUpload, jsonParser, urlencoded, validateToken, validateBookmarkSchema, validateBookmarkIsbn], async function (req, res, next) {
@@ -124,7 +143,8 @@ bookRouter.get("/getBook", async function (req, res) {
   }
 });
 
-bookRouter.get("/getCover", [cpUpload, jsonParser, urlencoded, validateToken], async function (req, res, next) {
+// bookRouter.get("/getCover", [cpUpload, jsonParser, urlencoded, validateToken], async function (req, res, next) {
+bookRouter.get("/getCover", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
   const isbn = req.query.isbn;
   if (isbn === undefined || isbn === "") {
     return res.status(400).send({ status: false, error: "Cover tidak tersedia" });
@@ -148,16 +168,17 @@ bookRouter.get("/getCover", async function (req, res) {
 
 // bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField, validateTokenWebsite], async function (req, res, next) {
 bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
-  console.log("req: ", req.files);
-  console.log("req: ", req.body);
   const isbn = req.body.ISBN;
   if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
   try {
-    if (req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf") {
+    if (
+      req.files.bookFile !== undefined &&
+      req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf"
+    ) {
       unlink(req.files.bookFile[0].path);
       unlink(req.files.bookCoverFile[0].path);
       return res.status(400).send({ Status: false, errorMsg: `Book File is not valid!. book file should be on "brf" format` });
-    } else if (req.files.bookCoverFile[0].mimetype !== "image/png" && req.files.bookCoverFile[0].mimetype !== "image/jpeg") {
+    } else if (req.files.bookCoverFile !== undefined && req.files.bookCoverFile[0].mimetype !== "image/png" && req.files.bookCoverFile[0].mimetype !== "image/jpeg") {
       unlink(req.files.bookFile[0].path);
       unlink(req.files.bookCoverFile[0].path);
       return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
@@ -246,18 +267,57 @@ bookRouter.post("/uploadBook", [jsonParser, urlencoded], async function (req, re
   }
 });
 
-// bookRouter.delete("/website/deleteBook", [jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
-bookRouter.delete("/deleteBook", [jsonParser, urlencoded], async function (req, res, next) {
-  const { ISBN } = req.query;
+bookRouter.patch("/updateBook", [cpUpload, jsonParser, urlencoded], async function (req, res) {
+  // console.log("req.body: ", req.body);
+  // return res.send("testing");
+
+  const isbn = req.body.ISBN;
+  if (isbn === "" || isbn === `""` || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
+  delete req.body.accessToken;
+  delete req.body.refreshToken;
   try {
-    const result = await removeBookFromDB(ISBN);
-    if (!result.Status) throw result;
-    console.log("result: ", result.Status);
-    return res.status(200).send({ status: true, message: result.msg });
+    var { bookCoverFilePath, bookFilePath } = await editBookInformationOnDB(req.body);
   } catch (error) {
-    // console.trace("error: ", error);
-    return res.status(400).send({ status: error.Status, message: error.msg, error: error.err });
+    return res.status(500).send({ Status: false, errorMsg: `Server Error` });
   }
+
+  const bookFilesIsAvailable = Object.keys(req.files).length !== 0;
+  console.log("req.files: ", req.files);
+  console.log("bookFilesIsAvailable: ", bookFilesIsAvailable);
+  if (bookFilesIsAvailable) {
+    try {
+      if (
+        req.files.bookFile !== undefined &&
+        req.files.bookFile[0].originalname.slice(req.files.bookFile[0].originalname.length - 4, req.files.bookFile[0].originalname.length).split(".")[1] !== "brf"
+      ) {
+        unlink(req.files.bookFile[0].path);
+        return res.status(400).send({ Status: false, errorMsg: `Book File is not valid!. book file should be on "brf" format` });
+      }
+      if (req.files.bookCoverFile !== undefined && req.files.bookCoverFile[0].mimetype !== "image/png" && req.files.bookCoverFile[0].mimetype !== "image/jpeg") {
+        unlink(req.files.bookCoverFile[0].path);
+        return res.status(400).send({ Status: false, errorMsg: `Book cover file is not valid!. book Cover file should be on "png or jpeg" format` });
+      }
+    } catch (error) {
+      console.trace("error: ", error);
+      return res.status(500).send({ Status: false, errorMsg: `Server Error` });
+    }
+    try {
+      if (req.files.bookFile) {
+        let bookFileExt = "txt";
+        await moveFile(`uploads/${currentId}.${bookFileExt}`, bookFilePath);
+      }
+      if (req.files.bookCoverFile) {
+        let bookCoverFileExt = req.files.bookCoverFile[0].mimetype.split("/")[1];
+        await moveFile(`uploads/${currentId}.${bookCoverFileExt}`, bookCoverFilePath);
+      }
+      return res.status(200).send({ status: 200, message: "Edit buku berhasil", warn: null });
+    } catch (error) {
+      console.trace(Object.keys(error));
+      console.trace(error);
+      return res.status(500).send({ status: false, errorType: "server error", warn: " Error status => DANGER!" });
+    }
+  }
+  return res.status(200).send({ status: 200, message: "Edit buku berhasil", warn: null });
 });
 
 bookRouter.get("/website/getBook", [cpUpload, jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
@@ -288,6 +348,19 @@ bookRouter.get("/website/getCover", async function (req, res) {
     return res.status(error.code ? error.code : 404).send({ status: false, error: error.message });
   }
   // console.trace("path: ", statPath.join(statPath.resolve(), dbResult.path));
+});
+
+bookRouter.delete("/website/deleteBook", [jsonParser, urlencoded, validateTokenWebsite], async function (req, res, next) {
+  const { ISBN } = req.query;
+  try {
+    const result = await removeBookFromDB(ISBN);
+    if (!result.Status) throw result;
+    console.log("result: ", result.Status);
+    return res.status(200).send({ status: true, message: result.msg });
+  } catch (error) {
+    // console.trace("error: ", error);
+    return res.status(400).send({ status: error.Status, message: error.msg, error: error.err });
+  }
 });
 
 ////////////////////////////////////////

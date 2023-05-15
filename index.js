@@ -7,6 +7,7 @@ import logoutRouter from "./routers/logout.js";
 import TokenRouter from "./routers/refreshToken.js";
 import registerRouter from "./routers/register.js";
 import RoleRouter from "./routers/role.js";
+import forgetPassword from "./routers/resetPassword.js";
 const RedisClient = createClient();
 
 const app = express();
@@ -19,6 +20,8 @@ app.use("/token", TokenRouter);
 app.use("/book", bookRouter);
 app.use("/register", registerRouter);
 app.use("/role", RoleRouter);
+app.use("/forgetPassword", forgetPassword);
+
 const server = app.listen(port, async () => {
   console.log(`Example app listening on port ${port}`);
   RedisClient.on("error", (err) => console.log("Redis Client Error", err));
