@@ -125,6 +125,7 @@ export async function editBookInformationOnDB(bookObject) {
         isbn: bookObject.ISBN,
         year: bookObject.YEAR,
         availability: bookObject.AVAILABILITY,
+        maxBook: bookObject.AVAILABILITY,
         publishers: bookObject.PUBLISHER,
         categories: bookObject.CATEGORY.toUpperCase(),
         languages: bookObject.LANGUAGE.toUpperCase().slice(0, 3),
