@@ -169,6 +169,7 @@ bookRouter.get("/getCover", async function (req, res) {
 // bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded, validateRequestField, validateTokenWebsite], async function (req, res, next) {
 bookRouter.post("/uploadBook", [cpUpload, jsonParser, urlencoded], async function (req, res, next) {
   const isbn = req.body.ISBN;
+  console.log("isbn: ", req.body);
   if (isbn === "" || isbn === undefined) return res.status(400).send({ Status: false, errorMsg: `ISBN tidak boleh kosong` });
   try {
     if (

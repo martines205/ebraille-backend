@@ -232,7 +232,6 @@ async function getBookList() {
         year: true,
         categories: true,
         editions: true,
-        titles: true,
         publishers: true,
         id: false,
       },
@@ -253,13 +252,15 @@ export async function getBookListByTitle(title) {
     } else preProcessTitle = title.split(" ").join(" & ");
     const result = await prisma.bookInformation.findMany({
       select: {
+        isbn: true,
         availability: true,
         titles: true,
         languages: true,
         authors: true,
         year: true,
+        categories: true,
         editions: true,
-        titles: true,
+        publishers: true,
         id: false,
       },
       where: { titles: { search: preProcessTitle } },

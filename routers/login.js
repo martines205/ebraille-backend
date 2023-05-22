@@ -17,7 +17,7 @@ loginRouter.get("/", [validateLoginRequestField, validateUserNotHaveToken], asyn
   try {
     const result = await userIsValid(username, password);
     const refreshToken = await getUserRefreshTokenByUsername(username);
-    return res.status(200).send({ loginStatus: true, msg: result.message, accessToken: result.accessToken, refreshToken });
+    return res.status(200).send({ loginStatus: true, msg: result.message, role: result.role, accessToken: result.accessToken, refreshToken });
   } catch (error) {
     return res.status(error.responseCode).send({ loginStatus: false, code: error.code, message: error.message });
   }

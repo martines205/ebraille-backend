@@ -22,7 +22,7 @@ async function userIsValid(username, password) {
       if (result === null) return reject({ responseCode: 400, code: 1, message: "Username Salah!" });
       await validatePassword(password, result.password);
       const accessToken = await getUserAccessTokenByUsername(username, result.role);
-      return resolve({ message: "Login berhasil!", accessToken });
+      return resolve({ message: "Login berhasil!", accessToken, role: result.role });
     } catch (error) {
       if (error.responseCode === 400) return reject(error);
       console.trace("error: ", error);

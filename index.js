@@ -8,8 +8,8 @@ import TokenRouter from "./routers/refreshToken.js";
 import registerRouter from "./routers/register.js";
 import RoleRouter from "./routers/role.js";
 import forgetPassword from "./routers/resetPassword.js";
+import WebSocket, { WebSocketServer } from "ws";
 const RedisClient = createClient();
-
 const app = express();
 app.use(cors());
 
@@ -65,3 +65,50 @@ async function shutDown() {
   connections.forEach((curr) => curr.end());
   setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
 }
+
+const webSockets = {};
+
+const wss = new WebSocketServer({ server });
+wss.on("connection", (ws, req) => {
+  // ws.send("Welcome new Client!");
+  // console.log("params: ", params);
+  const params = new URLSearchParams(req.url);
+  const UID = params.get("UID");
+  if (UID === null) ws.terminate();
+  webSockets[UID] = ws;
+  console.log("connected: " + UID + " in " + Object.getOwnPropertyNames(webSockets));
+  ws.on("message", (raw) => {
+    // console.log("received from " + UID + ": " + raw);
+    try {
+      const { UID_TARGET, Message } = JSON.parse(raw);
+      if (UID_TARGET === undefined || Message === undefined) throw new Error("Request invalid");
+      console.log("UID_TARGET:", UID_TARGET);
+      console.log("Message: ", Message);
+      var toUserWebSocket = webSockets[`${UID_TARGET}`];
+      // console.log("toUserWebSocket: ", toUserWebSocket);
+      if (UID !== "ADMIN" && toUserWebSocket) {
+        toUserWebSocket.send(JSON.stringify({ deviceID: UID, Message }));
+      } else if (UID === "ADMIN")
+        if (UID_TARGET.toUpperCase() === "ALL") {
+          wss.clients.forEach(function each(client) {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              console.log(`FROM ADMIN-> send: ${Message}`);
+              client.send(`FROM ADMIN-> send: ${Message}`);
+            }
+          });
+        } else {
+          toUserWebSocket.send(Message);
+        }
+    } catch (error) {
+      if (error instanceof Error) console.log("error: ", error.message);
+      ws.send(error.message);
+    }
+  });
+  ws.on("close", (raw) => {
+    if (UID !== "ADMIN") {
+      console.log("received close signal from " + UID);
+      delete webSockets[`${UID}`];
+      console.log("remaining connected client list: ", Object.getOwnPropertyNames(webSockets));
+    }
+  });
+});
