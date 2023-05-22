@@ -86,6 +86,7 @@ async function addBookToDb(bookObject) {
           bookCoverFilePath: bookObject.bookCoverFilePath,
           bookFilePath: bookObject.bookFilePath,
           availability: bookObject.AVAILABILITY,
+          maxBook: bookObject.AVAILABILITY,
           uploader: bookObject.UPLOADER,
           categories: bookObject.CATEGORY.toUpperCase(),
           languages: bookObject.LANGUAGE.toUpperCase().slice(0, 3),
