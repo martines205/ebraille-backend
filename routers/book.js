@@ -94,7 +94,8 @@ bookRouter.get("/downloadBook", async function (req, res) {
   } else res.send({ error: dbResult.errorMsg });
 });
 
-bookRouter.patch("/returnBook", [jsonParser, urlencoded, validateToken], async function (req, res, next) {
+// bookRouter.patch("/returnBook", [jsonParser, urlencoded, validateToken], async function (req, res, next) {
+bookRouter.patch("/returnBook", [jsonParser, urlencoded], async function (req, res, next) {
   const { isbn } = req.query;
   const { result, message, errorMsg } = await updateAvailability(isbn);
   if (result) return res.status(200).send({ status: result, message });
