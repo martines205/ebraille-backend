@@ -147,7 +147,8 @@ export async function editBookInformationOnDB(bookObject) {
 
 export async function removeBookFromDB(ISBN) {
   try {
-    const queryResult = await prisma.bookInformation.findFirst({ where: { isbn: ISBN } });
+    const queryResult = await prisma.bookInformation.findFirst({ where: { isbn: { equals: ISBN } } });
+    console.log("ISBN: ", ISBN);
     if (queryResult === null) throw new Error("Book not found!");
     const { id, titles, bookCoverFilePath, bookFilePath } = queryResult;
     console.log("id: ", id);
