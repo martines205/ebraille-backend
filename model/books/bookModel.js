@@ -197,6 +197,7 @@ export async function updateAvailability(isbn) {
     });
     if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
     else {
+      console.log("result: ", result);
       if (parseInt(result[0].availability) >= parseInt(result[0].maxBook)) return { result: false, path: "NaN", errorMsg: "Ketersedian buku sudah Maksimal" };
       const newAvailability = (parseInt(result[0].availability) + 1).toString();
       console.log("newAvailability: ", newAvailability);
