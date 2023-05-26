@@ -38,7 +38,10 @@ export async function validateBookmarkIsbn(req, res, next) {
     } catch (error) {
       return res.status(400).send({ status: false, error: "Server Error!" });
     }
-  }
+  } else if (Array.isArray(bookmarks) && bookmarks.length === 0) {
+    console.log("resetBookmark or bookmark isEmpty ! ");
+    return next();
+  } else return res.status(500).send({ status: false, error: "Server Error!" });
 }
 
 function getListOfIsbnFromBookmarkList(bookmarks) {
