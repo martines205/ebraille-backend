@@ -107,7 +107,7 @@ bookRouter.post("/setBookmark", [cpUpload, jsonParser, urlencoded, validateToken
   console.log("bookmark: ", bookmark);
   if (bookmark === undefined) return res.status(404).send({ Status: false, error: "Request invalid" });
   if (bookmark > 10) return res.status(404).send({ Status: false, error: "bang bookmark nya kebanyakan!" });
-  else return next();
+  next();
 });
 
 bookRouter.post("/setBookmark", [jsonParser, urlencoded], async function (req, res) {
