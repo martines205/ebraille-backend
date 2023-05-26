@@ -212,6 +212,7 @@ export async function updateAvailability(isbn) {
 
 async function setBookmarkToDb(userId, bookmarkInformation) {
   try {
+    console.log("userId, bookmarkInformation: ", userId, bookmarkInformation);
     await prisma.bookmark.upsert({ where: { userId: userId }, update: { bookmarkInformation }, create: { userId: userId, bookmarkInformation: bookmarkInformation } }).then(async () => {
       await prisma.$disconnect();
     });
