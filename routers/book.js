@@ -104,7 +104,6 @@ bookRouter.patch("/returnBook", [jsonParser, urlencoded], async function (req, r
 
 bookRouter.post("/setBookmark", [cpUpload, jsonParser, urlencoded, validateToken, validateBookmarkSchema, validateBookmarkIsbn], async function (req, res, next) {
   const bookmark = req.body.bookmarkInformation?.length;
-  console.log("bookmark: ", bookmark);
   if (bookmark === undefined) return res.status(404).send({ Status: false, error: "Request invalid" });
   if (bookmark > 10) return res.status(404).send({ Status: false, error: "bang bookmark nya kebanyakan!" });
   next();

@@ -12,7 +12,7 @@ export async function validateBookmarkSchema(req, res, next) {
     if (isDataBookmarkValid.length === 0) {
       return next();
     } else return res.status(400).send({ status: false, error: "Bookmark Schema is invalid" });
-  } else if (Array.isArray(bookmarks) && bookmarks.length === 0) next();
+  } else if (Array.isArray(bookmarks) && bookmarks.length === 0) return next();
   else return res.status(400).send({ status: false, error: "Bookmark field should be an Array of Object" });
 }
 
