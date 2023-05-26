@@ -195,7 +195,7 @@ export async function updateAvailability(isbn) {
     const result = await prisma.bookInformation.findMany({
       where: { isbn: { equals: isbn } },
     });
-    if (result instanceof PrismaClientKnownRequestError) throw new Error(result);
+    if (result instanceof PrismaClientKnownRequestError || result.length === 0) throw new Error(result);
     else {
       console.log("result: ", result);
       if (parseInt(result[0].availability) >= parseInt(result[0].maxBook)) return { result: false, path: "NaN", errorMsg: "Ketersedian buku sudah Maksimal" };
