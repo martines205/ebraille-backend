@@ -3,6 +3,7 @@ import { getBookIsbnList } from "../../model/books/bookModel.js";
 export async function validateBookmarkSchema(req, res, next) {
   const bookmarks = req.body.bookmarkInformation;
   console.log("bookmarks: ", bookmarks);
+  console.log("Array.isArray(bookmarks) && bookmarks.length === 0: ", Array.isArray(bookmarks), bookmarks.length === 0);
   if (Array.isArray(bookmarks) && bookmarks.length !== 0) {
     const isDataBookmarkValid = bookmarks.filter((bookmark) => {
       const isbn = bookmark[`${Object.keys(bookmark)}`];
